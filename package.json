@@ -1,0 +1,15 @@
+{
+  "name": "golden-zone",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Golden Zone — Premium 1 Gram Gold-Plated Jewellery E-Commerce Platform",
+  "scripts": {
+    "server": "npm run dev --prefix server",
+    "client": "npm run dev --prefix client",
+    "admin": "npm run dev --prefix admin",
+    "build:client": "npm run build --prefix client",
+    "build:admin": "npm run build --prefix admin",
+    "build:all": "npm run build:client && npm run build:admin",
+    "db:init": "npm run db:init --prefix server"
+  }
+}
