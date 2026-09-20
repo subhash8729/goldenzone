@@ -6,7 +6,7 @@ export default function CategoryGrid({ categories = [] }) {
     <section style={{ padding: '24px 12px 16px', maxWidth: '1200px', margin: '0 auto' }}>
       <div style={{ textAlign: 'center', marginBottom: '16px' }}>
         <h2 style={{
-          fontFamily: 'Playfair Display, serif',
+          fontFamily: '"Plus Jakarta Sans", system-ui, -apple-system, sans-serif',
           fontSize: '1.45rem',
           color: '#520612',
           fontWeight: 700,

@@ -18,13 +18,17 @@ const noteRoutes = require('./routes/noteRoutes');
 
 const app = express();
 
+const path = require('path');
+const fs = require('fs');
+
 // Security headers
 app.use(helmet({
+  contentSecurityPolicy: false,
   crossOriginResourcePolicy: { policy: 'cross-origin' }
 }));
 
-// CORS configuration
-const allowedOrigins = [
+// CORS configuration (Supporting Admin domain & dev origins)
+const rawOrigins = [
   config.clientUrl,
   config.adminUrl,
   'http://localhost:5173',
@@ -33,18 +37,28 @@ const allowedOrigins = [
   'http://127.0.0.1:5174'
 ];
 
+const allowedOrigins = rawOrigins
+  .flatMap(url => (url ? url.split(',') : []))
+  .map(url => url.trim().replace(/\/$/, ''))
+  .filter(Boolean);
+
 app.use(cors({
   origin: function (origin, callback) {
-    // allow requests with no origin (like mobile apps, curl, postman)
+    // Allow requests with no origin (mobile apps, curl, server-to-server)
     if (!origin) return callback(null, true);
-    if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV === 'development') {
+    const cleanOrigin = origin.trim().replace(/\/$/, '');
+    if (
+      allowedOrigins.includes(cleanOrigin) ||
+      process.env.NODE_ENV === 'development' ||
+      (config.appDomain && cleanOrigin.endsWith(config.appDomain))
+    ) {
       return callback(null, true);
     }
-    return callback(null, true); // Permissive in dev to avoid local dev hurdles
+    return callback(null, true); // Permissive to allow separate admin deployments to connect with credentials
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-razorpay-event-id', 'x-razorpay-signature']
 }));
 
 // Body parsers with raw body capturing for Razorpay Webhook signature verification
@@ -65,7 +79,9 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// API Routes
+// ==========================================================
+// 1. Backend REST API Routes (/api/*)
+// ==========================================================
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/categories', categoryRoutes);
@@ -77,7 +93,32 @@ app.use('/api/reviews', reviewRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/notes', noteRoutes);
 
-// 404 handler
+// ==========================================================
+// 2. Client Production Build Serving (/* -> client/dist)
+// ==========================================================
+const clientDistPath = path.resolve(__dirname, '../../client/dist');
+
+if (fs.existsSync(clientDistPath)) {
+  // Serve static assets from client/dist
+  app.use(express.static(clientDistPath, {
+    maxAge: '1d',
+    index: false
+  }));
+
+  // Handle SPA routing: serve index.html for all non-API GET routes
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api')) {
+      return next();
+    }
+    const indexPath = path.join(clientDistPath, 'index.html');
+    if (fs.existsSync(indexPath)) {
+      return res.sendFile(indexPath);
+    }
+    next();
+  });
+}
+
+// 404 handler for unmatched API routes
 app.use(notFoundHandler);
 
 // Centralized error handler

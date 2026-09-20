@@ -133,16 +133,20 @@ async function runSecurityTests() {
     console.log('\n[Test 3] Payment Verification & Idempotent Confirmation...');
     const fakePaymentId = 'pay_test_' + Date.now();
     const rzpOrderId = createdOrder.razorpayOrderId;
+    const env = require('../src/config/env');
 
-    // Generate valid HMAC signature
-    const testSecret = process.env.RAZORPAY_KEY_SECRET || 'dev_secret_fallback';
-    // If running in development with simulated keys, razorpayService allows dev fallback
+    // Generate valid HMAC signature matching server's configured secret
+    const validPaymentSig = crypto
+      .createHmac('sha256', env.razorpayKeySecret)
+      .update(`${rzpOrderId}|${fakePaymentId}`)
+      .digest('hex');
+
     const { req: verifyReq, res: verifyRes, next: verifyNext, getStatus: getVerifyStatus, getData: getVerifyData } = mockReqRes({
       body: {
         order_number: createdOrder.orderNumber,
         razorpay_order_id: rzpOrderId,
         razorpay_payment_id: fakePaymentId,
-        razorpay_signature: 'dev_signature_for_test',
+        razorpay_signature: validPaymentSig,
         method: 'upi'
       }
     });
@@ -155,12 +159,14 @@ async function runSecurityTests() {
     console.log(`Order status in DB: ${paidOrder.payment_status}`);
     if (paidOrder.payment_status === 'PAID') {
       console.log('✓ PASS: Order marked PAID after payment verification.');
+    } else {
+      throw new Error(`Order status was not PAID! Actual: ${paidOrder.payment_status}`);
     }
 
     // Check payment record
     const [paymentRecord] = await query('SELECT * FROM payments WHERE order_id = ?', [createdOrder.orderId]);
-    console.log(`Payment record created: Razorpay ID = ${paymentRecord.razorpay_payment_id}, Status = ${paymentRecord.status}`);
-    if (paymentRecord.status === 'SUCCESS') {
+    console.log(`Payment record created: Razorpay ID = ${paymentRecord.razorpay_payment_id}, Status = ${paymentRecord.payment_status}`);
+    if (paymentRecord.payment_status === 'PAID') {
       console.log('✓ PASS: Payment successfully recorded in DB.');
     }
 
@@ -171,7 +177,7 @@ async function runSecurityTests() {
         order_number: createdOrder.orderNumber,
         razorpay_order_id: rzpOrderId,
         razorpay_payment_id: fakePaymentId,
-        razorpay_signature: 'dev_signature_for_test',
+        razorpay_signature: validPaymentSig,
         method: 'upi'
       }
     });
@@ -208,6 +214,7 @@ async function runSecurityTests() {
     // Report failure
     const { req: reportFailReq, res: reportFailRes, next: reportFailNext, getStatus: getFailStatus, getData: getFailData } = mockReqRes({
       body: {
+        order_id: failOrder.orderId,
         order_number: failOrder.orderNumber,
         razorpay_order_id: failOrder.razorpayOrderId,
         razorpay_payment_id: 'pay_failed_123',
@@ -220,17 +227,141 @@ async function runSecurityTests() {
     await paymentController.handlePaymentFailed(reportFailReq, reportFailRes, reportFailNext);
     console.log(`Report fail status: ${getFailStatus()}, message: ${getFailData()?.message}`);
 
-    const [failedOrderInDb] = await query('SELECT payment_status FROM orders WHERE order_number = ?', [failOrder.orderNumber]);
-    console.log(`Failed order status in DB: ${failedOrderInDb.payment_status}`);
-    if (failedOrderInDb.payment_status === 'FAILED') {
-      console.log('✓ PASS: Order correctly marked FAILED with reason recorded.');
+    const [failedPaymentInDb] = await query('SELECT payment_status FROM payments WHERE order_id = ?', [failOrder.orderId]);
+    console.log(`Failed payment status in DB: ${failedPaymentInDb?.payment_status}`);
+    if (failedPaymentInDb?.payment_status === 'FAILED') {
+      console.log('✓ PASS: Payment correctly marked FAILED with reason recorded.');
+    }
+
+    // TEST 6: Cash on Delivery (COD) ₹200 Advance Calculation
+    console.log('\n[Test 6] Cash on Delivery (COD) ₹200 Advance Calculation...');
+    const { req: codReq, res: codRes, next: codNext, getStatus: getCodStatus, getData: getCodData } = mockReqRes({
+      body: {
+        payment_mode: 'COD',
+        primary_mobile: '9876543210',
+        full_name: 'COD Tester',
+        address: '789 COD Road',
+        state: 'Rajasthan',
+        district: 'Sanchore',
+        pincode: '343041',
+        items: [{ product_id: product.id, quantity: 1 }]
+      }
+    });
+
+    await orderService.createOrder(codReq, codRes, codNext);
+    const codOrderData = getCodData();
+    if (getCodStatus() !== 201 || !codOrderData?.order) {
+      throw new Error(`COD Order creation failed: ${JSON.stringify(codOrderData)}`);
+    }
+
+    const codOrder = codOrderData.order;
+    const expectedAdvance = Math.min(Number(product.discounted_price), 200);
+    const expectedRemaining = Math.max(0, Number(product.discounted_price) - expectedAdvance);
+
+    console.log(`COD Order: Total=₹${codOrder.totalAmount}, Advance=₹${codOrder.advanceAmount}, Remaining=₹${codOrder.remainingCodAmount}, Payable=₹${codOrder.payableAmount}`);
+
+    if (
+      Number(codOrder.advanceAmount) === expectedAdvance &&
+      Number(codOrder.remainingCodAmount) === expectedRemaining &&
+      Number(codOrder.payableAmount) === expectedAdvance &&
+      codOrder.paymentMode === 'COD'
+    ) {
+      console.log(`✓ PASS: Server correctly enforced COD ₹200 advance (Advance: ₹${expectedAdvance}, Remaining: ₹${expectedRemaining})`);
+    } else {
+      throw new Error(`COD calculation failed! Advance: ${codOrder.advanceAmount}, Remaining: ${codOrder.remainingCodAmount}`);
+    }
+
+    // Verify DB stored correctly
+    const [dbCodOrder] = await query('SELECT payment_mode, advance_amount, remaining_cod_amount, payment_status FROM orders WHERE id = ?', [codOrder.orderId]);
+    if (dbCodOrder.payment_mode === 'COD' && Number(dbCodOrder.advance_amount) === expectedAdvance) {
+      console.log('✓ PASS: COD details verified in database schema.');
+    } else {
+      throw new Error('Database COD fields mismatch!');
+    }
+
+    // TEST 7: Webhook Idempotency with webhook_events table
+    console.log('\n[Test 7] Webhook idempotency test...');
+    const testEventId = 'evt_test_' + Date.now();
+    const webhookPayload = {
+      event: 'payment.captured',
+      payload: {
+        payment: {
+          entity: {
+            id: 'pay_hook_test_' + Date.now(),
+            order_id: codOrder.razorpayOrderId,
+            amount: Math.round(expectedAdvance * 100),
+            status: 'captured',
+            method: 'upi'
+          }
+        }
+      }
+    };
+
+    const webhookRawBody = JSON.stringify(webhookPayload);
+    const validWebhookSig = crypto
+      .createHmac('sha256', env.razorpayWebhookSecret)
+      .update(webhookRawBody)
+      .digest('hex');
+
+    const { req: hookReq1, res: hookRes1, next: hookNext1, getStatus: getHookStatus1, getData: getHookData1 } = mockReqRes({
+      headers: {
+        'x-razorpay-event-id': testEventId,
+        'x-razorpay-signature': validWebhookSig
+      },
+      rawBody: webhookRawBody,
+      body: webhookPayload
+    });
+
+    await paymentController.handleWebhook(hookReq1, hookRes1, hookNext1);
+    console.log(`First webhook status: ${getHookStatus1()}, message: ${getHookData1()?.message}`);
+
+    // Deliver same webhook again (simulating duplicate webhook retry from Razorpay)
+    const { req: hookReq2, res: hookRes2, next: hookNext2, getStatus: getHookStatus2, getData: getHookData2 } = mockReqRes({
+      headers: {
+        'x-razorpay-event-id': testEventId,
+        'x-razorpay-signature': validWebhookSig
+      },
+      rawBody: webhookRawBody,
+      body: webhookPayload
+    });
+
+    await paymentController.handleWebhook(hookReq2, hookRes2, hookNext2);
+    console.log(`Duplicate webhook status: ${getHookStatus2()}, response: ${getHookData2()?.message}`);
+
+    const [recordedEvent] = await query('SELECT * FROM webhook_events WHERE event_id = ?', [testEventId]);
+    if (recordedEvent && getHookData2()?.already_processed === true) {
+      console.log('✓ PASS: Webhook processed idempotently and recorded in webhook_events table.');
+    } else {
+      throw new Error('Webhook idempotency failed!');
+    }
+
+    // TEST 8: Real OTP Security (Rejection of demo OTP 987654)
+    console.log('\n[Test 8] OTP Security & Removal of Demo OTP 987654...');
+    const otpService = require('../src/services/otpService');
+    const testMobile = '9286129921';
+    
+    // Clean prior OTP test records
+    await query('DELETE FROM otp_verifications WHERE mobile_number = ?', [testMobile]);
+
+    // Generate real OTP
+    const sendResult = await otpService.sendOtp(testMobile);
+    console.log(`Real OTP created & dispatched: success=${sendResult.success}, message="${sendResult.message}"`);
+
+    // Try demo OTP 987654 (must fail)
+    const demoVerify = await otpService.verifyOtp(testMobile, '987654');
+    if (!demoVerify.success) {
+      console.log('✓ PASS: Universal demo OTP 987654 is rejected as expected.');
+    } else {
+      throw new Error('Security flaw: Demo OTP 987654 was accepted!');
     }
 
     // Clean up test orders created during this test
     console.log('\n[Cleanup] Cleaning up test records...');
-    await query('DELETE FROM payments WHERE order_id IN (?, ?)', [createdOrder.orderId, failOrder.orderId]);
-    await query('DELETE FROM order_items WHERE order_id IN (?, ?)', [createdOrder.orderId, failOrder.orderId]);
-    await query('DELETE FROM orders WHERE id IN (?, ?)', [createdOrder.orderId, failOrder.orderId]);
+    await query('DELETE FROM payments WHERE order_id IN (?, ?, ?)', [createdOrder.orderId, failOrder.orderId, codOrder.orderId]);
+    await query('DELETE FROM order_items WHERE order_id IN (?, ?, ?)', [createdOrder.orderId, failOrder.orderId, codOrder.orderId]);
+    await query('DELETE FROM orders WHERE id IN (?, ?, ?)', [createdOrder.orderId, failOrder.orderId, codOrder.orderId]);
+    await query('DELETE FROM webhook_events WHERE event_id = ?', [testEventId]);
+    await query('DELETE FROM otp_verifications WHERE mobile_number = ?', [testMobile]);
     console.log('✓ Test records cleaned up.');
 
     console.log('\n=== ALL SECURITY AND INTEGRATION TESTS COMPLETED SUCCESSFULLY! ===');

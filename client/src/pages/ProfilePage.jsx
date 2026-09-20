@@ -46,7 +46,7 @@ export default function ProfilePage() {
   if (!isAuthenticated) {
     return (
       <div style={{ maxWidth: '400px', margin: '60px auto', padding: '0 16px', textAlign: 'center' }}>
-        <h2 style={{ fontFamily: 'Playfair Display, serif', color: '#520612', marginBottom: '8px' }}>
+        <h2 style={{ fontFamily: '"Plus Jakarta Sans", system-ui, -apple-system, sans-serif', color: '#520612', marginBottom: '8px' }}>
           Customer Account
         </h2>
         <p style={{ color: '#6B635B', marginBottom: '20px', fontSize: '0.86rem' }}>
@@ -110,7 +110,7 @@ export default function ProfilePage() {
               {user?.full_name?.charAt(0) || 'U'}
             </div>
             <div>
-              <h2 style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.2rem', color: '#1F1A17', fontWeight: 700 }}>
+              <h2 style={{ fontFamily: '"Plus Jakarta Sans", system-ui, -apple-system, sans-serif', fontSize: '1.2rem', color: '#1F1A17', fontWeight: 700 }}>
                 {user?.full_name || 'Not Named'}
               </h2>
               <p style={{ fontSize: '0.80rem', color: '#6B635B' }}>
@@ -269,7 +269,7 @@ export default function ProfilePage() {
 
       {/* Order History Section */}
       <div>
-        <h3 style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.25rem', color: '#520612', fontWeight: 700, marginBottom: '14px' }}>
+        <h3 style={{ fontFamily: '"Plus Jakarta Sans", system-ui, -apple-system, sans-serif', fontSize: '1.25rem', color: '#520612', fontWeight: 700, marginBottom: '14px' }}>
           Order History ({orders.length})
         </h3>
 

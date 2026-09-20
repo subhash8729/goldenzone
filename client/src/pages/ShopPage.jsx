@@ -105,7 +105,7 @@ export default function ShopPage({ categories = [] }) {
           {activeCategoryObj ? `1 Gram Gold-Plated ${activeCategoryObj.name}` : 'All Collections'}
         </span>
         <h1 style={{
-          fontFamily: 'Playfair Display, serif',
+          fontFamily: '"Plus Jakarta Sans", system-ui, -apple-system, sans-serif',
           fontSize: 'clamp(1.3rem, 4vw, 1.85rem)',
           color: '#520612',
           fontWeight: 700,

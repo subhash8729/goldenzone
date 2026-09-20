@@ -11,6 +11,7 @@ router.get('/customer/profile', verifyCustomerAuth, authController.getCustomerPr
 router.put('/customer/profile', verifyCustomerAuth, authController.updateCustomerProfile);
 
 // Admin Auth Routes
+router.post('/admin/send-otp', otpLimiter, authController.adminSendOtp);
 router.post('/admin/login', loginLimiter, authController.adminLogin);
 router.get('/admin/profile', verifyAdminAuth, authController.getAdminProfile);
 router.put('/admin/change-password', verifyAdminAuth, authController.adminChangePassword);

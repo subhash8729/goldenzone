@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Menu, X, Search, User, ShoppingBag, Phone, ChevronRight } from 'lucide-react';
+import { WhatsAppIcon } from './Icons';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 
-export default function Header({ categories = [] }) {
+export default function Header({ categories = [], settings = {} }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -78,7 +79,7 @@ export default function Header({ categories = [] }) {
           {/* Center: Golden Zone Brand Logo */}
           <Link to="/" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textDecoration: 'none' }}>
             <img
-              src="https://www.photo-pick.com/online/api/v1/albums/601cea76-66de-49d8-bf5f-9b3544d4f902.jpg"
+              src="https://res.cloudinary.com/dgxaol7mz/image/upload/v1789872272/ChatGPT_Image_Sep_19_2026_11_08_00_AM_nrqbem.png"
               alt="Golden Zone"
               style={{
                 height: '46px',
@@ -94,7 +95,7 @@ export default function Header({ categories = [] }) {
             <span
               style={{
                 display: 'none',
-                fontFamily: 'Playfair Display, serif',
+                fontFamily: '"Plus Jakarta Sans", system-ui, -apple-system, sans-serif',
                 fontSize: '1.25rem',
                 fontWeight: 700,
                 color: '#520612',
@@ -265,11 +266,11 @@ export default function Header({ categories = [] }) {
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <img
-              src="https://www.photo-pick.com/online/api/v1/albums/007b52cf-a71d-4c0e-b3cd-13d3e2d3f660.jpg"
+              src="https://res.cloudinary.com/dgxaol7mz/image/upload/v1789872272/ChatGPT_Image_Sep_19_2026_11_08_00_AM_nrqbem.png"
               alt="Golden Zone Logo"
               style={{ height: '32px', width: '32px', borderRadius: '7px', objectFit: 'contain' }}
             />
-            <span style={{ fontFamily: 'Playfair Display, serif', fontWeight: 700, color: '#520612', fontSize: '1rem' }}>
+            <span style={{ fontFamily: '"Plus Jakarta Sans", system-ui, -apple-system, sans-serif', fontWeight: 700, color: '#520612', fontSize: '1rem' }}>
               Golden Zone
             </span>
           </div>
@@ -362,7 +363,7 @@ export default function Header({ categories = [] }) {
             Need Assistance? Chat with us:
           </p>
           <a
-            href="https://wa.me/917976580806?text=Hello,%20I%20want%20to%20know%20more%20about%20Golden%20Zone%20jewellery."
+            href={settings.whatsapp_chat_url || `https://wa.me/${(settings.whatsapp_number || '919286129921').replace(/\D/g, '')}?text=Hello,%20I%20want%20to%20know%20more%20about%20Golden%20Zone%20jewellery.`}
             target="_blank"
             rel="noopener noreferrer"
             style={{
@@ -379,7 +380,7 @@ export default function Header({ categories = [] }) {
               textDecoration: 'none'
             }}
           >
-            <Phone size={14} /> WhatsApp Support
+            <WhatsAppIcon size={16} /> WhatsApp Support
           </a>
         </div>
       </div>

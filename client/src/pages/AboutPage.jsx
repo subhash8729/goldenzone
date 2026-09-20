@@ -1,19 +1,22 @@
 import React from 'react';
-import { Phone, Mail, MessageCircle, ShieldCheck, Sparkles } from 'lucide-react';
-import { InstagramIcon } from '../components/Icons';
+import { Phone, Mail, ShieldCheck, Sparkles } from 'lucide-react';
+import { InstagramIcon, WhatsAppIcon } from '../components/Icons';
 
 export default function AboutPage({ settings = {} }) {
-  const phone = settings.contact_phone || '+917976580806';
-  const whatsappNumber = settings.whatsapp_number || '+917976580806';
-  const instagramUrl = settings.instagram_url || 'https://instagram.com/goldenzone_official';
-  const email = settings.contact_email || 'support@goldenzone.com';
+  const phone = settings.contact_phone || '9286129921';
+  const whatsappNumber = settings.whatsapp_number || '+91 92861 29921';
+  const instagramUrl = settings.instagram_url || 'https://www.instagram.com/goldenzone.in';
+  const email = settings.contact_email || 'goldenzone676@gmail.com';
+  const supportEmail = settings.support_email || 'support@goldenzone.in';
+  const companyAddress = settings.company_address || 'Jyoti Nagar, Sanchore, Rajasthan, Jalore';
+  const companyPincode = settings.company_pincode || '343041';
 
   return (
     <div style={{ maxWidth: '720px', margin: '0 auto', padding: '24px 16px 60px' }}>
       {/* Brand Emblem */}
       <div style={{ textAlign: 'center', marginBottom: '32px' }}>
         <img
-          src="https://www.photo-pick.com/online/api/v1/albums/601cea76-66de-49d8-bf5f-9b3544d4f902.jpg"
+          src="https://res.cloudinary.com/dgxaol7mz/image/upload/v1789872272/ChatGPT_Image_Sep_19_2026_11_08_00_AM_nrqbem.png"
           alt="Golden Zone Logo"
           style={{
             height: '74px',
@@ -23,7 +26,7 @@ export default function AboutPage({ settings = {} }) {
             marginBottom: '12px'
           }}
         />
-        <h1 style={{ fontFamily: 'Playfair Display, serif', fontSize: '2rem', color: '#520612', fontWeight: 700 }}>
+        <h1 style={{ fontFamily: '"Plus Jakarta Sans", system-ui, -apple-system, sans-serif', fontSize: '2rem', color: '#520612', fontWeight: 700 }}>
           Golden Zone
         </h1>
         <p style={{
@@ -50,7 +53,7 @@ export default function AboutPage({ settings = {} }) {
         color: '#1F1A17',
         marginBottom: '28px'
       }}>
-        <h2 style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.25rem', color: '#520612', fontWeight: 700, marginBottom: '12px' }}>
+        <h2 style={{ fontFamily: '"Plus Jakarta Sans", system-ui, -apple-system, sans-serif', fontSize: '1.25rem', color: '#520612', fontWeight: 700, marginBottom: '12px' }}>
           Our Brand Philosophy
         </h2>
         <p style={{ marginBottom: '16px' }}>
@@ -85,7 +88,7 @@ export default function AboutPage({ settings = {} }) {
         padding: '24px 20px',
         textAlign: 'center'
       }}>
-        <h2 style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.2rem', color: '#520612', fontWeight: 700, marginBottom: '6px' }}>
+        <h2 style={{ fontFamily: '"Plus Jakarta Sans", system-ui, -apple-system, sans-serif', fontSize: '1.2rem', color: '#520612', fontWeight: 700, marginBottom: '6px' }}>
           Reach Out to Us
         </h2>
         <p style={{ fontSize: '0.80rem', color: '#6B635B', marginBottom: '20px' }}>
@@ -111,7 +114,7 @@ export default function AboutPage({ settings = {} }) {
               textDecoration: 'none'
             }}
           >
-            <MessageCircle size={18} /> Chat on WhatsApp ({settings.whatsapp_contact_name || 'Support'})
+            <WhatsAppIcon size={20} /> Chat on WhatsApp ({settings.whatsapp_contact_name || 'Support'})
           </a>
 
           <a
@@ -153,7 +156,7 @@ export default function AboutPage({ settings = {} }) {
               textDecoration: 'none'
             }}
           >
-            <InstagramIcon size={16} color="#520612" /> Instagram: {settings.instagram_username || '@goldenzone_official'}
+            <InstagramIcon size={16} color="#520612" /> Instagram: {settings.instagram_username || '@goldenzone.in'}
           </a>
 
           <a
@@ -175,6 +178,41 @@ export default function AboutPage({ settings = {} }) {
           >
             <Mail size={16} /> Email: {email}
           </a>
+
+          {supportEmail && supportEmail !== email && (
+            <a
+              href={`mailto:${supportEmail}`}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                backgroundColor: '#FAF7F2',
+                border: '1px solid #D4C9BC',
+                color: '#520612',
+                padding: '11px',
+                borderRadius: '9999px',
+                fontWeight: 600,
+                fontSize: '0.86rem',
+                textDecoration: 'none'
+              }}
+            >
+              <Mail size={16} /> Alt Support: {supportEmail}
+            </a>
+          )}
+
+          <div style={{
+            backgroundColor: '#FAF7F2',
+            border: '1px solid #D4C9BC',
+            borderRadius: '12px',
+            padding: '12px',
+            textAlign: 'center',
+            fontSize: '0.82rem',
+            color: '#6B635B',
+            marginTop: '6px'
+          }}>
+            📍 <strong>Office:</strong> {companyAddress} • PIN: {companyPincode}
+          </div>
         </div>
       </div>
     </div>

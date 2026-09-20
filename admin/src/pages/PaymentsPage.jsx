@@ -77,7 +77,7 @@ export default function PaymentsPage() {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '18px', flexWrap: 'wrap', gap: '12px' }}>
         <div>
-          <h1 style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.45rem', color: '#520612', fontWeight: 700 }}>
+          <h1 style={{ fontFamily: '"Plus Jakarta Sans", system-ui, -apple-system, sans-serif', fontSize: '1.45rem', color: '#520612', fontWeight: 700 }}>
             Razorpay Payment Transactions
           </h1>
           <p style={{ fontSize: '0.78rem', color: '#64748B' }}>
@@ -128,16 +128,20 @@ export default function PaymentsPage() {
       </div>
 
       {/* Transactions Table */}
-      <div style={{ backgroundColor: '#FFFFFF', borderRadius: '12px', border: '1px solid #E2E8F0', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-        <table className="admin-table">
+      <div style={{ backgroundColor: '#FFFFFF', borderRadius: '12px', border: '1px solid #E2E8F0', overflowX: 'auto', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+        <table className="admin-table" style={{ minWidth: '1100px' }}>
           <thead>
             <tr>
-              <th>Order Number</th>
-              <th>Razorpay Payment ID</th>
+              <th>Order #</th>
               <th>Customer</th>
-              <th>Amount</th>
+              <th>Razorpay Order ID</th>
+              <th>Razorpay Payment ID</th>
+              <th>Amount Paid</th>
+              <th>Mode / Type</th>
+              <th>Remaining COD</th>
               <th>Method</th>
-              <th>Payment Status</th>
+              <th>Status</th>
+              <th>Refund Info</th>
               <th>Date & Time</th>
               <th>Action</th>
             </tr>
@@ -145,19 +149,19 @@ export default function PaymentsPage() {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={8} style={{ textAlign: 'center', padding: '36px', color: '#64748B' }}>
+                <td colSpan={12} style={{ textAlign: 'center', padding: '36px', color: '#64748B' }}>
                   Loading real transactions...
                 </td>
               </tr>
             ) : payments.length === 0 ? (
               <tr>
-                <td colSpan={8} style={{ textAlign: 'center', padding: '48px 16px', color: '#64748B' }}>
+                <td colSpan={12} style={{ textAlign: 'center', padding: '48px 16px', color: '#64748B' }}>
                   <ShieldCheck size={36} color="#C5A059" style={{ margin: '0 auto 8px' }} />
                   <p style={{ fontWeight: 600, color: '#1E293B', fontSize: '0.92rem' }}>
                     No Real Razorpay Transactions Recorded
                   </p>
                   <p style={{ fontSize: '0.78rem', marginTop: '4px' }}>
-                    Fake seed data has been removed. Live Razorpay payments made via the website checkout will appear here in real-time.
+                    Live Razorpay payments made via website checkout or verified via webhooks will appear here in real-time.
                   </p>
                 </td>
               </tr>
@@ -165,78 +169,158 @@ export default function PaymentsPage() {
               payments.map((p) => {
                 const isPaid = p.payment_status === 'PAID';
                 const isFailed = p.payment_status === 'FAILED';
+                const isCod = p.payment_mode === 'COD' || p.payment_type === 'COD_ADVANCE';
+                const remaining = Number(p.remaining_cod_amount ?? p.order_remaining_cod_amount ?? 0);
 
                 return (
                   <tr key={p.id}>
                     <td>
-                      <span style={{ fontWeight: 700, color: '#520612' }}>{p.order_number || 'N/A'}</span>
-                      {p.razorpay_order_id && (
-                        <p style={{ fontSize: '0.68rem', color: '#94A3B8', fontFamily: 'monospace' }}>
+                      <button
+                        onClick={() => handleViewOrder(p.order_id)}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: '#520612',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          textDecoration: 'underline',
+                          padding: 0,
+                          fontSize: '0.84rem'
+                        }}
+                      >
+                        {p.order_number || `#${p.order_id || 'N/A'}`}
+                      </button>
+                    </td>
+
+                    <td>
+                      <span style={{ fontWeight: 600, color: '#1E293B' }}>{p.full_name || 'Customer'}</span>
+                      <p style={{ fontSize: '0.72rem', color: '#64748B' }}>+91 {p.primary_mobile}</p>
+                    </td>
+
+                    <td>
+                      {p.razorpay_order_id ? (
+                        <span style={{ fontFamily: 'monospace', fontSize: '0.74rem', color: '#334155' }}>
                           {p.razorpay_order_id}
-                        </p>
+                        </span>
+                      ) : (
+                        <span style={{ fontSize: '0.70rem', color: '#94A3B8' }}>-</span>
                       )}
                     </td>
+
                     <td>
-                      {p.razorpay_payment_id || p.transaction_id ? (
+                      {p.razorpay_payment_id ? (
                         <span style={{
                           fontFamily: 'monospace',
-                          fontSize: '0.76rem',
+                          fontSize: '0.74rem',
                           fontWeight: 600,
                           color: '#0F172A',
                           backgroundColor: '#F1F5F9',
                           padding: '2px 6px',
                           borderRadius: '4px'
                         }}>
-                          {p.razorpay_payment_id || p.transaction_id}
+                          {p.razorpay_payment_id}
                         </span>
                       ) : (
-                        <span style={{ fontSize: '0.72rem', color: '#94A3B8' }}>Awaiting callback</span>
+                        <span style={{ fontSize: '0.70rem', color: '#94A3B8' }}>Awaiting callback</span>
                       )}
                       {p.error_reason && (
-                        <p style={{ fontSize: '0.68rem', color: '#DC2626', marginTop: '2px' }}>
-                          Reason: {p.error_reason}
+                        <p style={{ fontSize: '0.66rem', color: '#DC2626', marginTop: '2px', maxWidth: '160px' }}>
+                          {p.error_reason}
                         </p>
                       )}
                     </td>
-                    <td>
-                      <span style={{ fontWeight: 600, color: '#1E293B' }}>{p.full_name || 'Customer'}</span>
-                      <p style={{ fontSize: '0.72rem', color: '#64748B' }}>+91 {p.primary_mobile}</p>
-                    </td>
+
                     <td style={{ fontWeight: 700, color: '#0F172A', fontSize: '0.90rem' }}>
-                      ₹{p.amount?.toLocaleString('en-IN')}
+                      ₹{Number(p.amount || 0).toLocaleString('en-IN')}
                     </td>
+
+                    <td>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                        <span style={{
+                          backgroundColor: isCod ? '#FEF3C7' : '#DCFCE7',
+                          color: isCod ? '#92400E' : '#166534',
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                          fontSize: '0.68rem',
+                          fontWeight: 700,
+                          display: 'inline-block',
+                          width: 'fit-content'
+                        }}>
+                          {isCod ? 'COD' : 'ONLINE'}
+                        </span>
+                        <span style={{ fontSize: '0.68rem', color: '#64748B' }}>
+                          {isCod ? '₹200 Advance' : 'Full Payment'}
+                        </span>
+                      </div>
+                    </td>
+
+                    <td>
+                      {isCod ? (
+                        <span style={{ fontWeight: 700, color: '#B45309', fontSize: '0.84rem' }}>
+                          ₹{remaining.toLocaleString('en-IN')}
+                        </span>
+                      ) : (
+                        <span style={{ fontSize: '0.74rem', color: '#94A3B8' }}>₹0</span>
+                      )}
+                    </td>
+
                     <td>
                       <span style={{
                         backgroundColor: '#F8FAFC',
                         color: '#334155',
                         border: '1px solid #E2E8F0',
-                        padding: '2px 8px',
+                        padding: '2px 6px',
                         borderRadius: '4px',
-                        fontSize: '0.72rem',
+                        fontSize: '0.70rem',
                         fontWeight: 600
                       }}>
                         {p.payment_method || 'RAZORPAY'}
                       </span>
                     </td>
+
                     <td>
                       <span style={{
                         backgroundColor: isPaid ? '#DCFCE7' : isFailed ? '#FEE2E2' : '#FEF3C7',
                         color: isPaid ? '#166534' : isFailed ? '#991B1B' : '#92400E',
-                        padding: '3px 10px',
+                        padding: '3px 8px',
                         borderRadius: '9999px',
-                        fontSize: '0.72rem',
+                        fontSize: '0.70rem',
                         fontWeight: 700,
                         display: 'inline-flex',
                         alignItems: 'center',
                         gap: '4px'
                       }}>
-                        {isPaid ? <CheckCircle2 size={12} /> : isFailed ? <AlertCircle size={12} /> : <Clock size={12} />}
+                        {isPaid ? <CheckCircle2 size={11} /> : isFailed ? <AlertCircle size={11} /> : <Clock size={11} />}
                         {p.payment_status}
                       </span>
                     </td>
-                    <td style={{ fontSize: '0.74rem', color: '#64748B' }}>
+
+                    <td>
+                      {p.refund_id ? (
+                        <div style={{ fontSize: '0.70rem' }}>
+                          <span style={{
+                            backgroundColor: '#E0E7FF',
+                            color: '#3730A3',
+                            padding: '2px 6px',
+                            borderRadius: '4px',
+                            fontWeight: 600,
+                            display: 'inline-block'
+                          }}>
+                            ₹{p.refund_amount} ({p.refund_status})
+                          </span>
+                          <span style={{ display: 'block', fontFamily: 'monospace', color: '#64748B', fontSize: '0.64rem', marginTop: '2px' }}>
+                            {p.refund_id}
+                          </span>
+                        </div>
+                      ) : (
+                        <span style={{ fontSize: '0.72rem', color: '#94A3B8' }}>None</span>
+                      )}
+                    </td>
+
+                    <td style={{ fontSize: '0.72rem', color: '#64748B', whiteSpace: 'nowrap' }}>
                       {p.formatted_date}
                     </td>
+
                     <td>
                       {p.order_id ? (
                         <button
@@ -255,7 +339,7 @@ export default function PaymentsPage() {
                             gap: '4px'
                           }}
                         >
-                          <Eye size={12} /> View Order
+                          <Eye size={12} /> Open
                         </button>
                       ) : (
                         '-'
@@ -302,7 +386,7 @@ export default function PaymentsPage() {
               backgroundColor: '#FAF7F2'
             }}>
               <div>
-                <h3 style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.15rem', color: '#520612', fontWeight: 700 }}>
+                <h3 style={{ fontFamily: '"Plus Jakarta Sans", system-ui, -apple-system, sans-serif', fontSize: '1.15rem', color: '#520612', fontWeight: 700 }}>
                   Order Details: {orderModalData?.order_number || `#${selectedOrderId}`}
                 </h3>
                 <p style={{ fontSize: '0.74rem', color: '#64748B' }}>
@@ -326,7 +410,7 @@ export default function PaymentsPage() {
                 {/* Status Strip */}
                 <div style={{
                   display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))',
                   gap: '10px',
                   backgroundColor: '#F8FAFC',
                   padding: '12px 14px',
@@ -334,6 +418,16 @@ export default function PaymentsPage() {
                   border: '1px solid #E2E8F0',
                   marginBottom: '16px'
                 }}>
+                  <div>
+                    <span style={{ fontSize: '0.68rem', color: '#64748B', display: 'block' }}>Payment Mode</span>
+                    <span style={{
+                      fontWeight: 700,
+                      fontSize: '0.80rem',
+                      color: orderModalData.payment_mode === 'COD' ? '#92400E' : '#166534'
+                    }}>
+                      {orderModalData.payment_mode || 'ONLINE'}
+                    </span>
+                  </div>
                   <div>
                     <span style={{ fontSize: '0.68rem', color: '#64748B', display: 'block' }}>Payment Status</span>
                     <span style={{
@@ -345,15 +439,31 @@ export default function PaymentsPage() {
                     </span>
                   </div>
                   <div>
-                    <span style={{ fontSize: '0.68rem', color: '#64748B', display: 'block' }}>Shipping Status</span>
-                    <span style={{ fontWeight: 600, fontSize: '0.80rem', color: orderModalData.is_shipped ? '#166534' : '#64748B' }}>
-                      {orderModalData.is_shipped ? 'SHIPPED' : 'NOT SHIPPED'}
+                    <span style={{ fontSize: '0.68rem', color: '#64748B', display: 'block' }}>Total Amount</span>
+                    <span style={{ fontWeight: 700, fontSize: '0.86rem', color: '#520612' }}>
+                      ₹{orderModalData.total_amount?.toLocaleString('en-IN')}
                     </span>
                   </div>
+                  {orderModalData.payment_mode === 'COD' && (
+                    <>
+                      <div>
+                        <span style={{ fontSize: '0.68rem', color: '#64748B', display: 'block' }}>Advance Paid</span>
+                        <span style={{ fontWeight: 700, fontSize: '0.86rem', color: '#166534' }}>
+                          ₹{Number(orderModalData.advance_amount || 0).toLocaleString('en-IN')}
+                        </span>
+                      </div>
+                      <div>
+                        <span style={{ fontSize: '0.68rem', color: '#64748B', display: 'block' }}>COD Due</span>
+                        <span style={{ fontWeight: 700, fontSize: '0.86rem', color: '#B45309' }}>
+                          ₹{Number(orderModalData.remaining_cod_amount || 0).toLocaleString('en-IN')}
+                        </span>
+                      </div>
+                    </>
+                  )}
                   <div>
-                    <span style={{ fontSize: '0.68rem', color: '#64748B', display: 'block' }}>Total Paid</span>
-                    <span style={{ fontWeight: 700, fontSize: '0.90rem', color: '#520612' }}>
-                      ₹{orderModalData.total_amount?.toLocaleString('en-IN')}
+                    <span style={{ fontSize: '0.68rem', color: '#64748B', display: 'block' }}>Shipping Status</span>
+                    <span style={{ fontWeight: 600, fontSize: '0.80rem', color: orderModalData.is_shipped ? '#166534' : '#64748B' }}>
+                      {orderModalData.is_shipped ? 'SHIPPED' : 'PENDING'}
                     </span>
                   </div>
                 </div>

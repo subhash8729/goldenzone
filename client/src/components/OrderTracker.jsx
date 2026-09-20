@@ -52,7 +52,7 @@ export default function OrderTracker({ order }) {
           <span style={{ fontSize: '0.72rem', color: '#8E857C', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
             Order Reference
           </span>
-          <h3 style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.15rem', color: '#520612', fontWeight: 700 }}>
+          <h3 style={{ fontFamily: '"Plus Jakarta Sans", system-ui, -apple-system, sans-serif', fontSize: '1.15rem', color: '#520612', fontWeight: 700 }}>
             {order.order_number}
           </h3>
         </div>
@@ -177,6 +177,56 @@ export default function OrderTracker({ order }) {
           </div>
         </div>
       )}
+
+      {/* Payment Details Snapshot */}
+      <div style={{
+        marginTop: '16px',
+        backgroundColor: '#FAF7F2',
+        border: '1px solid #E8E2D9',
+        borderRadius: '10px',
+        padding: '12px 14px',
+        fontSize: '0.78rem',
+        color: '#1F1A17'
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+          <strong style={{ color: '#520612', fontSize: '0.80rem' }}>
+            Payment Summary
+          </strong>
+          <span style={{
+            backgroundColor: order.payment_mode === 'COD' ? '#FEF3C7' : '#DCFCE7',
+            color: order.payment_mode === 'COD' ? '#92400E' : '#166534',
+            padding: '2px 8px',
+            borderRadius: '9999px',
+            fontSize: '0.70rem',
+            fontWeight: 700
+          }}>
+            {order.payment_mode === 'COD' ? 'CASH ON DELIVERY' : 'ONLINE PREPAID'}
+          </span>
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+          <span style={{ color: '#6B635B' }}>Total Order Value:</span>
+          <strong>₹{Number(order.total_amount || 0).toLocaleString('en-IN')}</strong>
+        </div>
+
+        {order.payment_mode === 'COD' ? (
+          <>
+            <div style={{ display: 'flex', justifyContent: 'space-between', color: '#166534', marginBottom: '4px' }}>
+              <span>Advance Paid (Razorpay):</span>
+              <strong>₹{Number(order.advance_amount || 0).toLocaleString('en-IN')}</strong>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', color: '#B45309', fontWeight: 700, borderTop: '1px dashed #D4C9BC', paddingTop: '4px', marginTop: '4px' }}>
+              <span>Payable on Delivery:</span>
+              <span>₹{Number(order.remaining_cod_amount || 0).toLocaleString('en-IN')}</span>
+            </div>
+          </>
+        ) : (
+          <div style={{ display: 'flex', justifyContent: 'space-between', color: '#166534' }}>
+            <span>Status:</span>
+            <strong>Paid in Full via Razorpay</strong>
+          </div>
+        )}
+      </div>
 
       {/* Delivery Address Snapshot */}
       <div style={{

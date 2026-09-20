@@ -28,23 +28,7 @@ async function createRazorpayOrder({ amount, receipt, notes = {} }) {
   const amountInPaise = Math.round(parseFloat(amount) * 100);
 
   if (!rzp) {
-    // If keys not yet set, provide helpful error or simulated ID for dev testing
-    if (config.nodeEnv === 'development') {
-      const mockRzpOrderId = `order_sim_${Date.now()}_${Math.floor(1000 + Math.random() * 9000)}`;
-      console.log(`ℹ️ [Razorpay Service (Dev Mock)]: Created simulated order: ${mockRzpOrderId} for ₹${amount}`);
-      return {
-        id: mockRzpOrderId,
-        entity: 'order',
-        amount: amountInPaise,
-        amount_paid: 0,
-        amount_due: amountInPaise,
-        currency: 'INR',
-        receipt,
-        status: 'created',
-        notes
-      };
-    }
-    throw new Error('Razorpay gateway credentials are not configured on server.');
+    throw new Error('Razorpay credentials (RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET) are not configured on server.');
   }
 
   const options = {
@@ -78,9 +62,6 @@ function verifyPaymentSignature(params) {
   const sec = secret || config.razorpayKeySecret;
 
   if (!sec) {
-    if (config.nodeEnv === 'development' && ordId && typeof ordId === 'string' && ordId.startsWith('order_sim_')) {
-      return true; // allow dev testing when keys not yet entered
-    }
     throw new Error('RAZORPAY_KEY_SECRET is missing on the server.');
   }
 

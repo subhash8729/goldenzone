@@ -56,6 +56,7 @@ export default function CheckoutPage() {
   const [isSavedModalOpen, setIsSavedModalOpen] = useState(false);
 
   // Payment states
+  const [paymentMode, setPaymentMode] = useState('ONLINE'); // 'ONLINE' | 'COD'
   const [submitting, setSubmitting] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [pendingOrderInfo, setPendingOrderInfo] = useState(null);
@@ -140,13 +141,17 @@ export default function CheckoutPage() {
 
   // Launch Razorpay Checkout Modal
   const launchRazorpayModal = (orderData) => {
+    const payable = Number(orderData.payableAmount ?? orderData.totalAmount);
+    const isCod = orderData.paymentMode === 'COD';
     const options = {
       key: orderData.razorpayKeyId,
-      amount: Math.round(orderData.totalAmount * 100),
+      amount: Math.round(payable * 100),
       currency: orderData.currency || 'INR',
       name: 'Golden Zone',
-      description: `Order #${orderData.orderNumber} (1 Gram Gold-Plated Jewellery)`,
-      image: 'https://www.photo-pick.com/online/api/v1/albums/601cea76-66de-49d8-bf5f-9b3544d4f902.jpg',
+      description: isCod
+        ? `Order #${orderData.orderNumber} (₹${payable} COD Advance)`
+        : `Order #${orderData.orderNumber} (Full Payment)`,
+      image: 'https://res.cloudinary.com/dgxaol7mz/image/upload/v1789872272/ChatGPT_Image_Sep_19_2026_11_08_00_AM_nrqbem.png',
       order_id: orderData.razorpayOrderId,
       prefill: {
         name: fullName.trim(),
@@ -261,6 +266,7 @@ export default function CheckoutPage() {
 
       // 2. Initiate order on backend (strictly calculates prices from DB)
       const orderPayload = {
+        payment_mode: paymentMode,
         full_name: fullName.trim(),
         primary_mobile: primaryMobile.replace(/\D/g, '').slice(-10),
         secondary_mobile: secondaryMobile ? secondaryMobile.replace(/\D/g, '').slice(-10) : null,
@@ -297,7 +303,7 @@ export default function CheckoutPage() {
   if (cart.length === 0) {
     return (
       <div style={{ maxWidth: '600px', margin: '60px auto', padding: '0 16px', textAlign: 'center' }}>
-        <h2 style={{ fontFamily: 'Playfair Display, serif', color: '#520612', marginBottom: '8px' }}>
+        <h2 style={{ fontFamily: '"Plus Jakarta Sans", system-ui, -apple-system, sans-serif', color: '#520612', marginBottom: '8px' }}>
           Your Bag is Empty
         </h2>
         <p style={{ color: '#6B635B', marginBottom: '20px', fontSize: '0.86rem' }}>
@@ -328,7 +334,7 @@ export default function CheckoutPage() {
         >
           <ArrowLeft size={20} />
         </button>
-        <h1 style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.4rem', color: '#520612', fontWeight: 700 }}>
+        <h1 style={{ fontFamily: '"Plus Jakarta Sans", system-ui, -apple-system, sans-serif', fontSize: '1.4rem', color: '#520612', fontWeight: 700 }}>
           Checkout & Delivery
         </h1>
       </div>
@@ -361,7 +367,7 @@ export default function CheckoutPage() {
           padding: '20px 16px',
           boxShadow: '0 2px 10px rgba(82, 6, 18, 0.04)'
         }}>
-          <h2 style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.15rem', color: '#520612', fontWeight: 700, marginBottom: '14px' }}>
+          <h2 style={{ fontFamily: '"Plus Jakarta Sans", system-ui, -apple-system, sans-serif', fontSize: '1.15rem', color: '#520612', fontWeight: 700, marginBottom: '14px' }}>
             Delivery Information
           </h2>
 
@@ -606,142 +612,246 @@ export default function CheckoutPage() {
               )}
             </div>
 
-            {/* Payment Method Option - 100% Online Payment via Razorpay */}
-            <div style={{
-              backgroundColor: '#FAF7F2',
-              borderRadius: '12px',
-              padding: '14px 16px',
-              border: '1.5px solid #C5A059',
-              marginTop: '12px'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <div style={{
-                    backgroundColor: '#520612',
-                    color: '#FFFFFF',
-                    borderRadius: '50%',
-                    width: '24px',
-                    height: '24px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}>
-                    <Lock size={13} />
-                  </div>
-                  <span style={{ fontSize: '0.86rem', fontWeight: 700, color: '#520612' }}>
-                    Online Payment via Razorpay
-                  </span>
-                </div>
-                <span style={{
-                  backgroundColor: '#DCFCE7',
-                  color: '#166534',
-                  fontSize: '0.68rem',
-                  fontWeight: 700,
-                  padding: '2px 8px',
-                  borderRadius: '9999px',
-                  border: '1px solid #86EFAC'
-                }}>
-                  100% SECURE
-                </span>
-              </div>
+            {/* Payment Options Selection */}
+            {(() => {
+              const codAdvance = Math.min(total, 200);
+              const codRemaining = Math.max(0, total - codAdvance);
+              const payableNow = paymentMode === 'COD' ? codAdvance : total;
 
-              <p style={{ fontSize: '0.76rem', color: '#6B635B', lineHeight: 1.45, marginBottom: '8px' }}>
-                Fast & secure online checkout powered by Razorpay. Pay via <strong>UPI (Google Pay, PhonePe, Paytm)</strong>, <strong>Debit & Credit Cards</strong>, or <strong>NetBanking</strong>.
-              </p>
+              return (
+                <div style={{ marginTop: '16px' }}>
+                  <label style={{ display: 'block', fontSize: '0.86rem', fontWeight: 700, color: '#520612', marginBottom: '10px' }}>
+                    Select Payment Method
+                  </label>
 
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center' }}>
-                <span style={{ fontSize: '0.68rem', fontWeight: 600, color: '#520612', backgroundColor: '#FFFFFF', padding: '3px 8px', borderRadius: '4px', border: '1px solid #E8E2D9' }}>
-                  UPI (GPay / PhonePe / Paytm)
-                </span>
-                <span style={{ fontSize: '0.68rem', fontWeight: 600, color: '#520612', backgroundColor: '#FFFFFF', padding: '3px 8px', borderRadius: '4px', border: '1px solid #E8E2D9' }}>
-                  Visa / Mastercard / RuPay
-                </span>
-                <span style={{ fontSize: '0.68rem', fontWeight: 600, color: '#520612', backgroundColor: '#FFFFFF', padding: '3px 8px', borderRadius: '4px', border: '1px solid #E8E2D9' }}>
-                  NetBanking / Wallets
-                </span>
-              </div>
-            </div>
-
-            {/* Order Summary & Place Button */}
-            <div style={{ marginTop: '16px', borderTop: '1px solid #E8E2D9', paddingTop: '16px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', color: '#6B635B', marginBottom: '4px' }}>
-                <span>Subtotal ({cart.reduce((s, i) => s + i.quantity, 0)} items):</span>
-                <span>₹{subtotal.toLocaleString('en-IN')}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', color: '#166534', fontWeight: 600, marginBottom: '8px' }}>
-                <span>Insured Express Shipping:</span>
-                <span>FREE</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.15rem', fontWeight: 700, color: '#520612', marginBottom: '16px' }}>
-                <span>Total Amount:</span>
-                <span>₹{total.toLocaleString('en-IN')}</span>
-              </div>
-
-              {pendingOrderInfo && orderError ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <button
-                    type="button"
-                    onClick={() => launchRazorpayModal(pendingOrderInfo)}
-                    disabled={submitting || verifying}
-                    className="btn-gold"
+                  {/* Option 1: Pay Full Amount Online */}
+                  <div
+                    onClick={() => setPaymentMode('ONLINE')}
                     style={{
-                      width: '100%',
-                      padding: '14px',
-                      fontSize: '0.94rem',
-                      boxShadow: '0 4px 16px rgba(197, 160, 89, 0.35)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '8px'
+                      backgroundColor: paymentMode === 'ONLINE' ? '#FFFDF8' : '#FAF7F2',
+                      borderRadius: '12px',
+                      padding: '14px 16px',
+                      border: paymentMode === 'ONLINE' ? '2px solid #520612' : '1px solid #D4C9BC',
+                      cursor: 'pointer',
+                      marginBottom: '10px',
+                      transition: 'all 0.2s ease',
+                      boxShadow: paymentMode === 'ONLINE' ? '0 2px 8px rgba(82,6,18,0.08)' : 'none'
                     }}
                   >
-                    <RefreshCw size={16} /> RETRY PAYMENT (₹{total.toLocaleString('en-IN')})
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={submitting || verifying}
-                    className="btn-outline"
-                    style={{ width: '100%', padding: '10px', fontSize: '0.82rem' }}
-                  >
-                    Re-initiate Order & Pay
-                  </button>
-                </div>
-              ) : (
-                <button
-                  type="submit"
-                  disabled={submitting || verifying}
-                  className="btn-maroon"
-                  style={{
-                    width: '100%',
-                    padding: '14px',
-                    fontSize: '0.94rem',
-                    boxShadow: '0 4px 16px rgba(82, 6, 18, 0.25)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '8px'
-                  }}
-                >
-                  {verifying ? (
-                    <>
-                      <Loader2 size={16} className="animate-spin" /> Verifying Razorpay Payment...
-                    </>
-                  ) : submitting ? (
-                    <>
-                      <Loader2 size={16} className="animate-spin" /> Opening Razorpay Gateway...
-                    </>
-                  ) : (
-                    <>
-                      <Lock size={15} /> PROCEED TO PAY ₹{total.toLocaleString('en-IN')}
-                    </>
-                  )}
-                </button>
-              )}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <div style={{
+                          width: '18px',
+                          height: '18px',
+                          borderRadius: '50%',
+                          border: paymentMode === 'ONLINE' ? '5px solid #520612' : '2px solid #8E857C',
+                          backgroundColor: '#FFFFFF'
+                        }} />
+                        <div>
+                          <span style={{ fontSize: '0.90rem', fontWeight: 700, color: '#520612' }}>
+                            Pay Full Amount Online
+                          </span>
+                          <span style={{ display: 'block', fontSize: '0.78rem', color: '#166534', fontWeight: 600 }}>
+                            Pay ₹{total.toLocaleString('en-IN')} now
+                          </span>
+                        </div>
+                      </div>
+                      <span style={{
+                        backgroundColor: '#DCFCE7',
+                        color: '#166534',
+                        fontSize: '0.68rem',
+                        fontWeight: 700,
+                        padding: '2px 8px',
+                        borderRadius: '9999px',
+                        border: '1px solid #86EFAC'
+                      }}>
+                        FASTEST DELIVERY
+                      </span>
+                    </div>
+                    <p style={{ fontSize: '0.74rem', color: '#6B635B', marginLeft: '28px', marginTop: '2px', lineHeight: 1.4 }}>
+                      Instant confirmation via Razorpay. Pay with <strong>UPI (GPay / PhonePe / Paytm)</strong>, Cards, or NetBanking.
+                    </p>
+                  </div>
 
-              <p style={{ fontSize: '0.70rem', color: '#8E857C', textAlign: 'center', marginTop: '10px' }}>
-                🔒 256-Bit Bank-grade Encryption. 100% Insured Delivery with Transit Guarantee.
-              </p>
-            </div>
+                  {/* Option 2: Cash on Delivery with ₹200 Advance */}
+                  <div
+                    onClick={() => setPaymentMode('COD')}
+                    style={{
+                      backgroundColor: paymentMode === 'COD' ? '#FFFDF8' : '#FAF7F2',
+                      borderRadius: '12px',
+                      padding: '14px 16px',
+                      border: paymentMode === 'COD' ? '2px solid #520612' : '1px solid #D4C9BC',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      boxShadow: paymentMode === 'COD' ? '0 2px 8px rgba(82,6,18,0.08)' : 'none'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <div style={{
+                          width: '18px',
+                          height: '18px',
+                          borderRadius: '50%',
+                          border: paymentMode === 'COD' ? '5px solid #520612' : '2px solid #8E857C',
+                          backgroundColor: '#FFFFFF'
+                        }} />
+                        <div>
+                          <span style={{ fontSize: '0.90rem', fontWeight: 700, color: '#520612' }}>
+                            Cash on Delivery
+                          </span>
+                          <span style={{ display: 'block', fontSize: '0.78rem', color: '#7D5C1E', fontWeight: 700 }}>
+                            Pay ₹{codAdvance} now + remaining ₹{codRemaining.toLocaleString('en-IN')} on delivery
+                          </span>
+                        </div>
+                      </div>
+                      <span style={{
+                        backgroundColor: '#FEF3C7',
+                        color: '#92400E',
+                        fontSize: '0.68rem',
+                        fontWeight: 700,
+                        padding: '2px 8px',
+                        borderRadius: '9999px',
+                        border: '1px solid #FCD34D'
+                      }}>
+                        COD AVAILABLE
+                      </span>
+                    </div>
+
+                    <div style={{
+                      backgroundColor: '#F5E8C7',
+                      border: '1px solid #C5A059',
+                      borderRadius: '8px',
+                      padding: '8px 12px',
+                      marginLeft: '28px',
+                      marginTop: '8px'
+                    }}>
+                      <p style={{ fontSize: '0.75rem', fontWeight: 700, color: '#520612', margin: 0 }}>
+                        ⚠️ ₹200 advance payment required. Remaining amount payable on delivery.
+                      </p>
+                      <p style={{ fontSize: '0.72rem', color: '#6B635B', margin: '4px 0 0', lineHeight: 1.4 }}>
+                        {total <= 200
+                          ? `Since order total is ₹${total}, pay ₹${codAdvance} online to confirm.`
+                          : `Pay ₹${codAdvance} online now via Razorpay to confirm order booking. The remaining ₹${codRemaining.toLocaleString('en-IN')} is to be paid to the courier agent in cash/UPI upon doorstep delivery.`}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Order Summary & Place Button */}
+                  <div style={{ marginTop: '18px', borderTop: '1px solid #E8E2D9', paddingTop: '16px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', color: '#6B635B', marginBottom: '4px' }}>
+                      <span>Subtotal ({cart.reduce((s, i) => s + i.quantity, 0)} items):</span>
+                      <span>₹{subtotal.toLocaleString('en-IN')}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', color: '#166534', fontWeight: 600, marginBottom: '8px' }}>
+                      <span>Insured Express Shipping:</span>
+                      <span>FREE</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.05rem', fontWeight: 700, color: '#520612', marginBottom: '10px' }}>
+                      <span>Total Order Value:</span>
+                      <span>₹{total.toLocaleString('en-IN')}</span>
+                    </div>
+
+                    {/* Breakdown for COD */}
+                    {paymentMode === 'COD' && (
+                      <div style={{
+                        backgroundColor: '#FAF7F2',
+                        border: '1px dashed #C5A059',
+                        borderRadius: '8px',
+                        padding: '10px 12px',
+                        marginBottom: '16px',
+                        fontSize: '0.80rem'
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', color: '#520612', fontWeight: 700, marginBottom: '4px' }}>
+                          <span>Online Advance Payable Now:</span>
+                          <span>₹{codAdvance.toLocaleString('en-IN')}</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', color: '#7D5C1E', fontWeight: 700 }}>
+                          <span>Cash on Delivery (Pay at Doorstep):</span>
+                          <span>₹{codRemaining.toLocaleString('en-IN')}</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {pendingOrderInfo && orderError ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <button
+                          type="button"
+                          onClick={() => launchRazorpayModal(pendingOrderInfo)}
+                          disabled={submitting || verifying}
+                          className="btn-gold"
+                          style={{
+                            width: '100%',
+                            padding: '14px',
+                            fontSize: '0.94rem',
+                            boxShadow: '0 4px 16px rgba(197, 160, 89, 0.35)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '8px'
+                          }}
+                        >
+                          <RefreshCw size={16} /> RETRY PAYMENT (₹{(pendingOrderInfo.payableAmount || payableNow).toLocaleString('en-IN')})
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={submitting || verifying}
+                          className="btn-outline"
+                          style={{ width: '100%', padding: '10px', fontSize: '0.82rem' }}
+                        >
+                          Re-initiate Order & Pay
+                        </button>
+                      </div>
+                    ) : (
+                      <div>
+                        <button
+                          type="submit"
+                          disabled={submitting || verifying}
+                          className="btn-maroon"
+                          style={{
+                            width: '100%',
+                            padding: '14px',
+                            fontSize: '0.94rem',
+                            boxShadow: '0 4px 16px rgba(82, 6, 18, 0.25)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '8px'
+                          }}
+                        >
+                          {verifying ? (
+                            <>
+                              <Loader2 size={16} className="animate-spin" /> Verifying Razorpay Payment...
+                            </>
+                          ) : submitting ? (
+                            <>
+                              <Loader2 size={16} className="animate-spin" /> Opening Razorpay Gateway...
+                            </>
+                          ) : paymentMode === 'COD' ? (
+                            <>
+                              <Lock size={15} /> PAY ₹{codAdvance} ADVANCE VIA RAZORPAY
+                            </>
+                          ) : (
+                            <>
+                              <Lock size={15} /> PROCEED TO PAY ₹{total.toLocaleString('en-IN')}
+                            </>
+                          )}
+                        </button>
+
+                        {paymentMode === 'COD' && (
+                          <p style={{ fontSize: '0.72rem', color: '#7D5C1E', textAlign: 'center', marginTop: '6px', fontWeight: 600 }}>
+                            Remaining ₹{codRemaining.toLocaleString('en-IN')} to be collected on delivery in cash/UPI.
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    <p style={{ fontSize: '0.70rem', color: '#8E857C', textAlign: 'center', marginTop: '10px' }}>
+                      🔒 256-Bit Bank-grade Encryption. 100% Insured Delivery with Transit Guarantee.
+                    </p>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         </form>
       </div>

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronDown, Phone, Mail, MessageCircle, Sparkles } from 'lucide-react';
-import { InstagramIcon } from './Icons';
+import { ChevronDown, Phone, Mail, Sparkles } from 'lucide-react';
+import { InstagramIcon, WhatsAppIcon } from './Icons';
 
 export default function Footer({ settings = {} }) {
   const [openSection, setOpenSection] = useState(null);
@@ -10,11 +10,14 @@ export default function Footer({ settings = {} }) {
     setOpenSection(openSection === sec ? null : sec);
   };
 
-  const phone = settings.contact_phone || '+917976580806';
-  const whatsappNumber = settings.whatsapp_number || '+917976580806';
+  const phone = settings.contact_phone || '9286129921';
+  const whatsappNumber = settings.whatsapp_number || '+91 92861 29921';
   const whatsappGroup = settings.whatsapp_group_url || 'https://chat.whatsapp.com/invite/goldenzone';
-  const instagramUrl = settings.instagram_url || 'https://instagram.com/goldenzone_official';
-  const email = settings.contact_email || 'support@goldenzone.com';
+  const instagramUrl = settings.instagram_url || 'https://www.instagram.com/goldenzone.in';
+  const email = settings.contact_email || 'goldenzone676@gmail.com';
+  const supportEmail = settings.support_email || 'support@goldenzone.in';
+  const companyAddress = settings.company_address || 'Jyoti Nagar, Sanchore, Rajasthan, Jalore';
+  const companyPincode = settings.company_pincode || '343041';
   const brandDesc = settings.brand_description || 'Golden Zone brings thoughtfully designed 1 gram gold-plated jewellery for everyday and occasion wear. Timeless styling, rich aesthetics, and trustworthy craftsmanship.';
 
   return (
@@ -29,170 +32,170 @@ export default function Footer({ settings = {} }) {
         {/* Brand Header */}
         <div style={{ textAlign: 'center', marginBottom: '28px', maxWidth: '600px', margin: '0 auto 28px' }}>
           <img
-            src="https://www.photo-pick.com/online/api/v1/albums/601cea76-66de-49d8-bf5f-9b3544d4f902.jpg"
+            src="https://res.cloudinary.com/dgxaol7mz/image/upload/v1789872272/ChatGPT_Image_Sep_19_2026_11_08_00_AM_nrqbem.png"
             alt="Golden Zone"
             style={{
               height: '52px',
               width: '52px',
-              marginBottom: '10px',
-              borderRadius: '8px',
-              objectFit: 'contain',
-              filter: 'brightness(1.05) drop-shadow(0 2px 8px rgba(0,0,0,0.3))'
+              margin: '0 auto 8px',
+              borderRadius: '10px',
+              objectFit: 'contain'
             }}
           />
-          <h3 style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.4rem', color: '#FFFFFF', fontWeight: 700, letterSpacing: '0.04em' }}>
-            Golden Zone
-          </h3>
-          <p style={{
-            fontSize: '0.78rem',
-            color: '#F5E8C7',
-            letterSpacing: '0.08em',
-            textTransform: 'uppercase',
-            fontWeight: 600,
-            margin: '4px 0 12px'
+          <h2 style={{
+            fontFamily: '"Plus Jakarta Sans", system-ui, -apple-system, sans-serif',
+            fontSize: '1.4rem',
+            color: '#C5A059',
+            fontWeight: 700,
+            letterSpacing: '0.04em'
           }}>
-            Specializing Exclusively in 1 Gram Gold-Plated Jewellery
-          </p>
-          <p style={{ fontSize: '0.82rem', color: '#D4C9BC', lineHeight: 1.5 }}>
+            Golden Zone
+          </h2>
+          <p style={{
+            fontSize: '0.80rem',
+            color: '#D4C9BC',
+            lineHeight: 1.5,
+            marginTop: '6px'
+          }}>
             {brandDesc}
+          </p>
+          <p style={{
+            fontSize: '0.76rem',
+            color: '#C5A059',
+            marginTop: '8px',
+            fontWeight: 500
+          }}>
+            📍 {companyAddress} • PIN: {companyPincode}
           </p>
         </div>
 
-        {/* Links Grid */}
+        {/* Accordion / Footer Grid */}
         <div style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
           gap: '24px',
-          borderTop: '1px solid rgba(197, 160, 89, 0.25)',
-          paddingTop: '24px',
-          marginBottom: '28px'
+          paddingBottom: '28px'
         }}>
-          {/* Section: Shop */}
+          {/* Section 1: Quick Links */}
           <div>
-            <div
-              onClick={() => toggleSection('shop')}
+            <button
+              onClick={() => toggleSection('links')}
               style={{
+                width: '100%',
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                cursor: 'pointer',
-                marginBottom: '12px'
+                background: 'none',
+                border: 'none',
+                color: '#C5A059',
+                fontFamily: '"Plus Jakarta Sans", system-ui, -apple-system, sans-serif',
+                fontSize: '0.98rem',
+                fontWeight: 700,
+                textAlign: 'left',
+                padding: '8px 0',
+                cursor: 'pointer'
               }}
             >
-              <h4 style={{ fontFamily: 'Playfair Display, serif', fontSize: '1rem', color: '#FFFFFF', fontWeight: 600 }}>
-                SHOP COLLECTIONS
-              </h4>
-              <ChevronDown
-                size={18}
-                color="#C5A059"
-                style={{
-                  transform: openSection === 'shop' ? 'rotate(180deg)' : 'rotate(0deg)',
-                  transition: 'transform 0.2s'
-                }}
-              />
-            </div>
-            <div style={{
-              display: openSection === 'shop' || window.innerWidth > 640 ? 'flex' : 'none',
+              <span>Quick Links</span>
+              <span className="sm:hidden">{openSection === 'links' ? '−' : '+'}</span>
+            </button>
+            <ul style={{
+              display: openSection === 'links' || window.innerWidth > 640 ? 'flex' : 'none',
               flexDirection: 'column',
               gap: '8px',
+              listStyle: 'none',
+              padding: 0,
+              margin: 0,
               fontSize: '0.84rem'
             }}>
-              <Link to="/shop" style={{ color: '#D4C9BC' }}>Shop All Jewellery</Link>
-              <Link to="/shop?category=chain" style={{ color: '#D4C9BC' }}>Men's Chains</Link>
-              <Link to="/shop?category=bali" style={{ color: '#D4C9BC' }}>Men's Balis</Link>
-              <Link to="/shop?category=ring" style={{ color: '#D4C9BC' }}>Men's Rings</Link>
-              <Link to="/shop?category=kada" style={{ color: '#D4C9BC' }}>Men's Kadas</Link>
-              <Link to="/shop?category=bracelet" style={{ color: '#D4C9BC' }}>Men's Bracelets</Link>
-            </div>
+              <li><Link to="/shop" style={{ color: '#D4C9BC' }}>All Jewellery</Link></li>
+              <li><Link to="/orders" style={{ color: '#D4C9BC' }}>Track Parcel Status</Link></li>
+              <li><Link to="/about" style={{ color: '#D4C9BC' }}>About Golden Zone</Link></li>
+              <li><Link to="/contact" style={{ color: '#D4C9BC' }}>Contact & Helpdesk</Link></li>
+              <li><Link to="/profile" style={{ color: '#D4C9BC' }}>Customer Account</Link></li>
+            </ul>
           </div>
 
-          {/* Section: Quick Links & Trust */}
+          {/* Section 2: Customer Care & Policies */}
           <div>
-            <div
-              onClick={() => toggleSection('about')}
+            <button
+              onClick={() => toggleSection('service')}
               style={{
+                width: '100%',
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                cursor: 'pointer',
-                marginBottom: '12px'
+                background: 'none',
+                border: 'none',
+                color: '#C5A059',
+                fontFamily: '"Plus Jakarta Sans", system-ui, -apple-system, sans-serif',
+                fontSize: '0.98rem',
+                fontWeight: 700,
+                textAlign: 'left',
+                padding: '8px 0',
+                cursor: 'pointer'
               }}
             >
-              <h4 style={{ fontFamily: 'Playfair Display, serif', fontSize: '1rem', color: '#FFFFFF', fontWeight: 600 }}>
-                ABOUT & POLICY
-              </h4>
-              <ChevronDown
-                size={18}
-                color="#C5A059"
-                style={{
-                  transform: openSection === 'about' ? 'rotate(180deg)' : 'rotate(0deg)',
-                  transition: 'transform 0.2s'
-                }}
-              />
-            </div>
-            <div style={{
-              display: openSection === 'about' || window.innerWidth > 640 ? 'flex' : 'none',
+              <span>Trust & Assurance</span>
+              <span className="sm:hidden">{openSection === 'service' ? '−' : '+'}</span>
+            </button>
+            <ul style={{
+              display: openSection === 'service' || window.innerWidth > 640 ? 'flex' : 'none',
               flexDirection: 'column',
               gap: '8px',
-              fontSize: '0.84rem'
+              listStyle: 'none',
+              padding: 0,
+              margin: 0,
+              fontSize: '0.84rem',
+              color: '#D4C9BC'
             }}>
-              <Link to="/about" style={{ color: '#D4C9BC' }}>About Golden Zone</Link>
-              <Link to="/contact" style={{ color: '#D4C9BC' }}>Contact & Help</Link>
-              <Link to="/profile" style={{ color: '#D4C9BC' }}>Track Your Order</Link>
-              <div style={{
-                backgroundColor: 'rgba(0,0,0,0.25)',
-                padding: '10px',
-                borderRadius: '8px',
-                marginTop: '6px',
-                fontSize: '0.74rem',
-                color: '#F5E8C7',
-                lineHeight: 1.4
-              }}>
-                ℹ️ <strong>Transparency Note:</strong> All our pieces are crafted with 1 gram gold plating on premium base alloys. Not solid gold.
-              </div>
-            </div>
+              <li>✓ Authentic 1 Gram Micro Gold Plating</li>
+              <li>✓ High Skin Comfort & Anti-Tarnish</li>
+              <li>✓ Free Shipping Across All India</li>
+              <li>✓ Insured Transit with Tamper-Evident Seal</li>
+              <li>✓ Razorpay 256-Bit Bank Grade Encryption</li>
+            </ul>
           </div>
 
-          {/* Section: Contact & Social */}
+          {/* Section 3: Contact & Support */}
           <div>
-            <div
+            <button
               onClick={() => toggleSection('contact')}
               style={{
+                width: '100%',
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                cursor: 'pointer',
-                marginBottom: '12px'
+                background: 'none',
+                border: 'none',
+                color: '#C5A059',
+                fontFamily: '"Plus Jakarta Sans", system-ui, -apple-system, sans-serif',
+                fontSize: '0.98rem',
+                fontWeight: 700,
+                textAlign: 'left',
+                padding: '8px 0',
+                cursor: 'pointer'
               }}
             >
-              <h4 style={{ fontFamily: 'Playfair Display, serif', fontSize: '1rem', color: '#FFFFFF', fontWeight: 600 }}>
-                CONNECT & SUPPORT
-              </h4>
-              <ChevronDown
-                size={18}
-                color="#C5A059"
-                style={{
-                  transform: openSection === 'contact' ? 'rotate(180deg)' : 'rotate(0deg)',
-                  transition: 'transform 0.2s'
-                }}
-              />
-            </div>
+              <span>Get In Touch</span>
+              <span className="sm:hidden">{openSection === 'contact' ? '−' : '+'}</span>
+            </button>
             <div style={{
               display: openSection === 'contact' || window.innerWidth > 640 ? 'flex' : 'none',
               flexDirection: 'column',
               gap: '10px',
               fontSize: '0.84rem'
             }}>
-              <a href={`tel:${phone}`} style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#D4C9BC' }}>
+              <a href={`tel:${phone}`} style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#D4C9BC', textDecoration: 'none' }}>
                 <Phone size={15} color="#C5A059" /> {phone}
               </a>
               <a
                 href={`https://wa.me/${whatsappNumber.replace(/\D/g, '')}?text=Hello,%20I%20want%20to%20know%20more%20about%20Golden%20Zone%20jewellery.`}
                 target="_blank"
                 rel="noopener noreferrer"
-                style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#25D366', fontWeight: 600 }}
+                style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#25D366', fontWeight: 600, textDecoration: 'none' }}
               >
-                <MessageCircle size={15} /> WhatsApp Chat
+                <WhatsAppIcon size={16} /> WhatsApp: {whatsappNumber}
               </a>
               <a
                 href={whatsappGroup}
@@ -208,17 +211,23 @@ export default function Footer({ settings = {} }) {
                   borderRadius: '9999px',
                   fontSize: '0.76rem',
                   fontWeight: 600,
-                  width: 'fit-content'
+                  width: 'fit-content',
+                  textDecoration: 'none'
                 }}
               >
-                <MessageCircle size={13} /> Join WhatsApp VIP Group
+                <WhatsAppIcon size={15} /> Join WhatsApp VIP Group
               </a>
-              <a href={instagramUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#D4C9BC' }}>
-                <InstagramIcon size={15} color="#C5A059" /> {settings.instagram_username || '@goldenzone_official'}
+              <a href={instagramUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#D4C9BC', textDecoration: 'none' }}>
+                <InstagramIcon size={15} color="#C5A059" /> {settings.instagram_username || '@goldenzone.in'}
               </a>
-              <a href={`mailto:${email}`} style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#D4C9BC' }}>
+              <a href={`mailto:${email}`} style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#D4C9BC', textDecoration: 'none' }}>
                 <Mail size={15} color="#C5A059" /> {email}
               </a>
+              {supportEmail && supportEmail !== email && (
+                <a href={`mailto:${supportEmail}`} style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#D4C9BC', textDecoration: 'none' }}>
+                  <Mail size={15} color="#C5A059" /> {supportEmail}
+                </a>
+              )}
             </div>
           </div>
         </div>

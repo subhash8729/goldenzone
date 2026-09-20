@@ -20,7 +20,7 @@
   --border-strong: #D4C9BC;
   --badge-sale: #520612;
   --badge-stock: #8E857C;
-  --font-serif: 'Playfair Display', Georgia, serif;
+  --font-serif: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
   --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
   --shadow-md: 0 4px 12px rgba(82, 6, 18, 0.06);
@@ -35,6 +35,7 @@
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
 }
 
 body {
@@ -47,9 +48,67 @@ body {
   overflow-x: hidden;
 }
 
-h1, h2, h3, .font-serif {
-  font-family: var(--font-serif);
+h1, h2, h3, h4, h5, h6, .font-serif {
+  font-family: var(--font-sans);
   letter-spacing: -0.01em;
+}
+
+/* Running Marquee Ticker */
+.marquee-container {
+  width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  background-color: var(--primary-maroon);
+  color: #F5E8C7;
+  padding: 10px 0;
+  display: flex;
+  user-select: none;
+  border-top: 1px solid rgba(197, 160, 89, 0.25);
+  border-bottom: 1px solid rgba(197, 160, 89, 0.25);
+}
+
+.marquee-track {
+  display: flex;
+  width: max-content;
+  animation: gz-marquee 24s linear infinite;
+  will-change: transform;
+}
+
+.marquee-track:hover {
+  animation-play-state: paused;
+}
+
+.marquee-group {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  padding-right: 28px;
+  flex-shrink: 0;
+}
+
+.marquee-item {
+  font-family: var(--font-sans);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.marquee-bullet {
+  color: var(--accent-gold);
+  font-size: 0.95rem;
+}
+
+@keyframes gz-marquee {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
 }
 
 a {
@@ -432,4 +491,213 @@ button, input, select, textarea {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* =======================================================
+   Premium Minimalist Site Preloader
+   ======================================================= */
+.gz-preloader {
+  position: fixed;
+  inset: 0;
+  z-index: 999999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at 50% 45%, #560613 0%, #30030A 60%, #1A0105 100%);
+  color: #FFFFFF;
+  overflow: hidden;
+  transition: opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1),
+              visibility 0.5s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform;
+}
+
+.gz-preloader-fade-out {
+  opacity: 0;
+  visibility: hidden;
+  transform: scale(1.025);
+  pointer-events: none;
+}
+
+/* Ambient Gold Vignette Aura */
+.gz-preloader-glow {
+  position: absolute;
+  width: 380px;
+  height: 380px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(197, 160, 89, 0.16) 0%, rgba(82, 6, 18, 0) 70%);
+  pointer-events: none;
+  animation: gz-pulse-glow 3s ease-in-out infinite alternate;
+}
+
+.gz-preloader-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  position: relative;
+  z-index: 2;
+  animation: gz-preloader-enter 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Emblem Wrap */
+.gz-preloader-emblem-wrap {
+  position: relative;
+  width: 76px;
+  height: 76px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.gz-preloader-logo {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1.5px solid rgba(197, 160, 89, 0.7);
+  box-shadow: 0 0 24px rgba(197, 160, 89, 0.35), inset 0 0 10px rgba(0, 0, 0, 0.4);
+  position: relative;
+  z-index: 2;
+  animation: gz-logo-breathe 2.4s ease-in-out infinite alternate;
+}
+
+/* Rotating Minimalist Orbit Accent */
+.gz-preloader-orbit {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1px dashed rgba(197, 160, 89, 0.45);
+  animation: gz-orbit-spin 8s linear infinite;
+}
+
+/* Brand Typography */
+.gz-preloader-title-wrap {
+  margin-bottom: 24px;
+}
+
+.gz-preloader-title {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif !important;
+  font-size: 1.15rem;
+  font-weight: 800;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+  background: linear-gradient(135deg, #FDF7E7 0%, #E8CD90 50%, #C5A059 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-shadow: 0 0 30px rgba(197, 160, 89, 0.25);
+  animation: gz-shimmer 2.5s ease-in-out infinite alternate;
+}
+
+.gz-preloader-subtitle {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif !important;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: #D4C9BC;
+  opacity: 0.85;
+}
+
+/* Hairline Minimalist Progress Bar */
+.gz-preloader-progress-track {
+  width: 130px;
+  height: 1.5px;
+  background: rgba(197, 160, 89, 0.16);
+  border-radius: 9999px;
+  overflow: hidden;
+  position: relative;
+}
+
+.gz-preloader-progress-bar {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #8C6A2E 0%, #E8CD90 60%, #FFFFFF 100%);
+  box-shadow: 0 0 10px rgba(197, 160, 89, 0.8);
+  border-radius: 9999px;
+  animation: gz-progress-anim 1.25s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* Animations */
+@keyframes gz-preloader-enter {
+  0% {
+    opacity: 0;
+    transform: translateY(10px) scale(0.97);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes gz-pulse-glow {
+  0% {
+    transform: scale(0.9);
+    opacity: 0.4;
+  }
+  100% {
+    transform: scale(1.15);
+    opacity: 0.85;
+  }
+}
+
+@keyframes gz-logo-breathe {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 18px rgba(197, 160, 89, 0.25);
+  }
+  100% {
+    transform: scale(1.04);
+    box-shadow: 0 0 30px rgba(197, 160, 89, 0.45);
+  }
+}
+
+@keyframes gz-orbit-spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes gz-shimmer {
+  0% {
+    filter: brightness(0.95);
+  }
+  100% {
+    filter: brightness(1.2);
+  }
+}
+
+@keyframes gz-progress-anim {
+  0% {
+    width: 0%;
+  }
+  50% {
+    width: 65%;
+  }
+  100% {
+    width: 100%;
+  }
+}
+
+/* Smooth page entrance when preloader exits */
+.gz-page-enter {
+  animation: gz-page-reveal 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes gz-page-reveal {
+  0% {
+    opacity: 0.85;
+    filter: blur(2px);
+  }
+  100% {
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+
 

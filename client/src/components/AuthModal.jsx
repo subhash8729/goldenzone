@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { authService } from '../services/api';
 import { X, Smartphone, KeyRound, User, CheckCircle2 } from 'lucide-react';
@@ -12,7 +12,17 @@ export default function AuthModal() {
   const [address, setAddress] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [demoNote, setDemoNote] = useState('');
+  const [countdown, setCountdown] = useState(0);
+
+  useEffect(() => {
+    let timer;
+    if (countdown > 0) {
+      timer = setInterval(() => {
+        setCountdown((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [countdown]);
 
   if (!isAuthModalOpen) return null;
 
@@ -23,13 +33,13 @@ export default function AuthModal() {
     setFullName('');
     setAddress('');
     setError('');
-    setDemoNote('');
+    setCountdown(0);
     closeAuthModal();
   };
 
   // Step 1: Send OTP
   const handleSendOtp = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     setError('');
     const cleanNumber = mobile.replace(/\D/g, '').slice(-10);
     if (cleanNumber.length !== 10) {
@@ -39,9 +49,9 @@ export default function AuthModal() {
 
     setLoading(true);
     try {
-      const res = await authService.sendOtp(cleanNumber);
-      setDemoNote(res.data.demoNote || 'DEMO OTP: 987654');
+      await authService.sendOtp(cleanNumber);
       setStep('otp');
+      setCountdown(60);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to send OTP. Please try again.');
     } finally {
@@ -142,11 +152,11 @@ export default function AuthModal() {
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <img
-              src="https://www.photo-pick.com/online/api/v1/albums/007b52cf-a71d-4c0e-b3cd-13d3e2d3f660.jpg"
+              src="https://res.cloudinary.com/dgxaol7mz/image/upload/v1789872272/ChatGPT_Image_Sep_19_2026_11_08_00_AM_nrqbem.png"
               alt="Golden Zone"
               style={{ height: '28px', width: '28px', borderRadius: '7px', objectFit: 'contain' }}
             />
-            <span style={{ fontFamily: 'Playfair Display, serif', fontWeight: 700, color: '#520612', fontSize: '0.96rem' }}>
+            <span style={{ fontFamily: '"Plus Jakarta Sans", system-ui, -apple-system, sans-serif', fontWeight: 700, color: '#520612', fontSize: '0.96rem' }}>
               Golden Zone
             </span>
           </div>
@@ -243,24 +253,9 @@ export default function AuthModal() {
               <h3 style={{ fontSize: '1.15rem', color: '#520612', fontWeight: 700, marginBottom: '6px' }}>
                 Verify Mobile Number
               </h3>
-              <p style={{ fontSize: '0.82rem', color: '#6B635B', marginBottom: '14px' }}>
-                Enter the 6-digit code sent to <strong>+91 {mobile}</strong>
+              <p style={{ fontSize: '0.82rem', color: '#6B635B', marginBottom: '18px' }}>
+                Enter the 6-digit code sent via SMS to <strong>+91 {mobile}</strong>
               </p>
-
-              {/* Demo OTP Helper Banner */}
-              <div style={{
-                backgroundColor: '#F5E8C7',
-                border: '1px solid #C5A059',
-                color: '#7D5C1E',
-                fontSize: '0.80rem',
-                padding: '8px 12px',
-                borderRadius: '8px',
-                marginBottom: '16px',
-                fontWeight: 600,
-                textAlign: 'center'
-              }}>
-                🔑 {demoNote || 'DEMO OTP: 987654'}
-              </div>
 
               <div style={{
                 display: 'flex',
@@ -305,20 +300,33 @@ export default function AuthModal() {
                   fontSize: '0.90rem',
                   fontWeight: 600,
                   cursor: otp.length === 6 ? 'pointer' : 'not-allowed',
-                  marginBottom: '12px'
+                  marginBottom: '14px'
                 }}
               >
                 {loading ? 'Verifying...' : 'Verify OTP'}
               </button>
 
-              <div style={{ textAlign: 'center' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.80rem' }}>
                 <button
                   type="button"
                   onClick={() => setStep('mobile')}
-                  style={{ background: 'none', border: 'none', color: '#520612', fontSize: '0.80rem', cursor: 'pointer', textDecoration: 'underline' }}
+                  style={{ background: 'none', border: 'none', color: '#520612', cursor: 'pointer', textDecoration: 'underline' }}
                 >
-                  Change mobile number
+                  Change number
                 </button>
+
+                {countdown > 0 ? (
+                  <span style={{ color: '#8E857C' }}>Resend OTP in {countdown}s</span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleSendOtp}
+                    disabled={loading}
+                    style={{ background: 'none', border: 'none', color: '#520612', fontWeight: 600, cursor: 'pointer', textDecoration: 'underline' }}
+                  >
+                    Resend OTP
+                  </button>
+                )}
               </div>
             </form>
           )}

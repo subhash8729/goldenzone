@@ -94,12 +94,12 @@ export default function AdminLayout() {
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <img
-              src="https://www.photo-pick.com/online/api/v1/albums/007b52cf-a71d-4c0e-b3cd-13d3e2d3f660.jpg"
+              src="https://res.cloudinary.com/dgxaol7mz/image/upload/v1789872272/ChatGPT_Image_Sep_19_2026_11_08_00_AM_nrqbem.png"
               alt="Golden Zone"
               style={{ height: '34px', width: '34px', borderRadius: '8px', objectFit: 'contain' }}
             />
             <div>
-              <h2 style={{ fontFamily: 'Playfair Display, serif', fontSize: '1rem', fontWeight: 700, color: '#FFFFFF', lineHeight: 1.1 }}>
+              <h2 style={{ fontFamily: '"Plus Jakarta Sans", system-ui, -apple-system, sans-serif', fontSize: '1rem', fontWeight: 700, color: '#FFFFFF', lineHeight: 1.1 }}>
                 Golden Zone
               </h2>
               <span style={{ fontSize: '0.66rem', color: '#C5A059', letterSpacing: '0.06em', textTransform: 'uppercase', fontWeight: 600 }}>
@@ -241,7 +241,7 @@ export default function AdminLayout() {
           >
             <Menu size={22} />
           </button>
-          <span style={{ fontFamily: 'Playfair Display, serif', fontWeight: 700, color: '#520612', fontSize: '1rem' }}>
+          <span style={{ fontFamily: '"Plus Jakarta Sans", system-ui, -apple-system, sans-serif', fontWeight: 700, color: '#520612', fontSize: '1rem' }}>
             Golden Zone Admin
           </span>
           <div style={{ width: '22px' }} />

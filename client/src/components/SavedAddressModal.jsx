@@ -60,7 +60,7 @@ export default function SavedAddressModal({ isOpen, savedData, onUseSaved, onEnt
             <MapPin size={20} />
           </div>
           <div>
-            <h4 style={{ fontFamily: 'Playfair Display, serif', fontSize: '1rem', fontWeight: 700, color: '#520612' }}>
+            <h4 style={{ fontFamily: '"Plus Jakarta Sans", system-ui, -apple-system, sans-serif', fontSize: '1rem', fontWeight: 700, color: '#520612' }}>
               Previous Delivery Details Found
             </h4>
             <p style={{ fontSize: '0.76rem', color: '#6B635B' }}>

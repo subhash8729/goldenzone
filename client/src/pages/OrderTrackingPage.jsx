@@ -43,7 +43,7 @@ export default function OrderTrackingPage() {
   return (
     <div style={{ maxWidth: '640px', margin: '0 auto', padding: '20px 14px 48px' }}>
       <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-        <h1 style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.5rem', color: '#520612', fontWeight: 700 }}>
+        <h1 style={{ fontFamily: '"Plus Jakarta Sans", system-ui, -apple-system, sans-serif', fontSize: '1.5rem', color: '#520612', fontWeight: 700 }}>
           Track Your Jewellery Parcel
         </h1>
         <p style={{ fontSize: '0.80rem', color: '#6B635B', marginTop: '4px' }}>

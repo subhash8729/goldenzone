@@ -46,7 +46,7 @@ export default function ReviewsPage() {
   return (
     <div>
       <div style={{ marginBottom: '18px' }}>
-        <h1 style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.45rem', color: '#520612', fontWeight: 700 }}>
+        <h1 style={{ fontFamily: '"Plus Jakarta Sans", system-ui, -apple-system, sans-serif', fontSize: '1.45rem', color: '#520612', fontWeight: 700 }}>
           Customer Reviews Moderation
         </h1>
         <p style={{ fontSize: '0.78rem', color: '#64748B' }}>

@@ -147,26 +147,43 @@ exports.createOrder = async (req, res, next) => {
       const shippingAmount = 0.0; // Free delivery across India
       const totalAmount = subtotal + shippingAmount;
 
-      // Create Razorpay Order via official service
+      // Determine Payment Mode & Calculate Advance vs COD Balance strictly on server
+      const paymentMode = (req.body.payment_mode || 'ONLINE').toUpperCase() === 'COD' ? 'COD' : 'ONLINE';
+      let advanceAmount = totalAmount;
+      let remainingCodAmount = 0.0;
+      let payableAmount = totalAmount;
+
+      if (paymentMode === 'COD') {
+        // ₹200 advance applies to every COD order; if order <= ₹200, collect only total amount
+        advanceAmount = Math.min(200.0, totalAmount);
+        remainingCodAmount = Math.max(0.0, totalAmount - advanceAmount);
+        payableAmount = advanceAmount;
+      }
+
+      // Create Razorpay Order via official service for the exact payable amount
       const rzpOrder = await razorpayService.createRazorpayOrder({
-        amount: totalAmount,
+        amount: payableAmount,
         receipt: orderNumber,
         notes: {
           orderNumber,
           customerId,
-          customerMobile: primary_mobile.trim()
+          customerMobile: primary_mobile.trim(),
+          payment_mode: paymentMode,
+          total_amount: String(totalAmount),
+          advance_amount: String(advanceAmount),
+          remaining_cod_amount: String(remainingCodAmount)
         }
       });
 
-      // Insert Order record with PENDING payment status and razorpay_order_id
+      // Insert Order record with PENDING payment status, payment_mode, and amounts
       const [orderInsert] = await conn.execute(
         `INSERT INTO orders (
           order_number, user_id, full_name, primary_mobile, secondary_mobile,
           address, state, district, city, village, pincode,
           latitude, longitude, maps_url,
-          subtotal, shipping_amount, total_amount,
+          subtotal, shipping_amount, total_amount, payment_mode, advance_amount, remaining_cod_amount,
           payment_status, razorpay_order_id, is_shipped, is_delivered
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', ?, 0, 0)`,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', ?, 0, 0)`,
         [
           orderNumber,
           customerId,
@@ -185,6 +202,9 @@ exports.createOrder = async (req, res, next) => {
           subtotal,
           shippingAmount,
           totalAmount,
+          paymentMode,
+          advanceAmount,
+          remainingCodAmount,
           rzpOrder.id
         ]
       );
@@ -211,12 +231,21 @@ exports.createOrder = async (req, res, next) => {
         );
       }
 
-      // Insert Initial Payment record (RAZORPAY / PENDING)
+      // Insert Initial Payment record with mode and type
       await conn.execute(
         `INSERT INTO payments (
-          order_id, user_id, amount, payment_method, razorpay_order_id, payment_status, gateway
-        ) VALUES (?, ?, ?, 'RAZORPAY', ?, 'PENDING', 'RAZORPAY')`,
-        [orderId, customerId, totalAmount, rzpOrder.id]
+          order_id, user_id, amount, payment_mode, payment_type, remaining_cod_amount,
+          payment_method, razorpay_order_id, payment_status, gateway
+        ) VALUES (?, ?, ?, ?, ?, ?, 'RAZORPAY', ?, 'PENDING', 'RAZORPAY')`,
+        [
+          orderId,
+          customerId,
+          payableAmount,
+          paymentMode,
+          paymentMode === 'COD' ? 'COD_ADVANCE' : 'FULL',
+          remainingCodAmount,
+          rzpOrder.id
+        ]
       );
 
       // Update customer table with latest delivery details for future pre-filling
@@ -248,6 +277,10 @@ exports.createOrder = async (req, res, next) => {
         orderId,
         orderNumber,
         totalAmount,
+        advanceAmount,
+        remainingCodAmount,
+        paymentMode,
+        payableAmount,
         itemCount: verifiedItems.length,
         razorpayOrderId: rzpOrder.id,
         razorpayKeyId: config.razorpayKeyId,
@@ -325,6 +358,9 @@ exports.getCustomerOrders = async (req, res, next) => {
         ...ord,
         subtotal: parseFloat(ord.subtotal),
         total_amount: parseFloat(ord.total_amount),
+        advance_amount: parseFloat(ord.advance_amount || 0),
+        remaining_cod_amount: parseFloat(ord.remaining_cod_amount || 0),
+        payment_mode: ord.payment_mode || 'ONLINE',
         relative_time: getRelativeTimeString(ord.created_at),
         formatted_date: formatReadableDate(ord.created_at),
         items: items.map((it) => ({
@@ -384,9 +420,11 @@ exports.getOrderByNumber = async (req, res, next) => {
     const trackingTimeline = [
       {
         step: 1,
-        title: 'ORDERED & PAID',
+        title: order.payment_mode === 'COD' ? 'ORDERED & ADVANCE PAID' : 'ORDERED & PAID',
         description: order.payment_status === 'PAID'
-          ? 'Payment confirmed via Razorpay. Order received by Golden Zone.'
+          ? (order.payment_mode === 'COD'
+              ? `Advance of ₹${parseFloat(order.advance_amount || 0).toLocaleString('en-IN')} confirmed via Razorpay. Remaining balance ₹${parseFloat(order.remaining_cod_amount || 0).toLocaleString('en-IN')} payable on delivery.`
+              : 'Payment confirmed via Razorpay. Order received by Golden Zone.')
           : 'Order placed, awaiting Razorpay payment confirmation.',
         isCompleted: true,
         timestamp: order.created_at,
@@ -422,6 +460,9 @@ exports.getOrderByNumber = async (req, res, next) => {
         ...customerSafeOrder,
         subtotal: parseFloat(order.subtotal),
         total_amount: parseFloat(order.total_amount),
+        advance_amount: parseFloat(order.advance_amount || 0),
+        remaining_cod_amount: parseFloat(order.remaining_cod_amount || 0),
+        payment_mode: order.payment_mode || 'ONLINE',
         relative_time: getRelativeTimeString(order.created_at),
         formatted_date: formatReadableDate(order.created_at),
         tracking_step: trackingStep,
@@ -528,6 +569,9 @@ exports.getAdminOrders = async (req, res, next) => {
       ...o,
       subtotal: parseFloat(o.subtotal),
       total_amount: parseFloat(o.total_amount),
+      advance_amount: parseFloat(o.advance_amount || 0),
+      remaining_cod_amount: parseFloat(o.remaining_cod_amount || 0),
+      payment_mode: o.payment_mode || 'ONLINE',
       relative_time: getRelativeTimeString(o.created_at),
       formatted_date: formatReadableDate(o.created_at),
       formatted_shipped_date: o.shipped_at ? formatReadableDate(o.shipped_at) : null,
@@ -579,6 +623,9 @@ exports.getAdminOrderDetail = async (req, res, next) => {
         ...order,
         subtotal: parseFloat(order.subtotal),
         total_amount: parseFloat(order.total_amount),
+        advance_amount: parseFloat(order.advance_amount || 0),
+        remaining_cod_amount: parseFloat(order.remaining_cod_amount || 0),
+        payment_mode: order.payment_mode || 'ONLINE',
         relative_time: getRelativeTimeString(order.created_at),
         formatted_date: formatReadableDate(order.created_at),
         directions_url: (order.latitude && order.longitude)

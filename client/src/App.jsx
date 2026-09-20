@@ -3,11 +3,13 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { CartProvider, useCart } from './context/CartContext';
 import { categoryService, settingService } from './services/api';
+import { getMergedSettings } from './config/siteDetails';
 
 import Header from './components/Header';
 import Footer from './components/Footer';
 import CartDrawer from './components/CartDrawer';
 import AuthModal from './components/AuthModal';
+import SitePreloader from './components/SitePreloader';
 import { Toast } from './components/LoadingSkeleton';
 
 import HomePage from './pages/HomePage';
@@ -26,7 +28,7 @@ function AppContent({ settings, categories }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-      <Header categories={categories} />
+      <Header categories={categories} settings={settings} />
       <CartDrawer />
       <AuthModal />
       <Toast toast={toast} onClose={closeToast} onOpenCart={openCart} />
@@ -36,7 +38,7 @@ function AppContent({ settings, categories }) {
           <Route path="/" element={<HomePage settings={settings} categories={categories} />} />
           <Route path="/shop" element={<ShopPage categories={categories} />} />
           <Route path="/product/:identifier" element={<ProductDetailPage settings={settings} />} />
-          <Route path="/checkout" element={<CheckoutPage />} />
+          <Route path="/checkout" element={<CheckoutPage settings={settings} />} />
           <Route path="/orders" element={<OrderTrackingPage />} />
           <Route path="/orders/:orderNumber" element={<OrderTrackingPage />} />
           <Route path="/profile" element={<ProfilePage />} />
@@ -52,14 +54,17 @@ function AppContent({ settings, categories }) {
 }
 
 export default function App() {
-  const [settings, setSettings] = useState({});
+  const [settings, setSettings] = useState(() => getMergedSettings({}));
   const [categories, setCategories] = useState([]);
+  const [preloaderActive, setPreloaderActive] = useState(true);
 
   useEffect(() => {
     // Load public site settings
     settingService.getSettings()
       .then((res) => {
-        if (res.data?.settings) setSettings(res.data.settings);
+        if (res.data?.settings) {
+          setSettings(getMergedSettings(res.data.settings));
+        }
       })
       .catch((err) => console.log('Site settings load notice:', err.message));
 
@@ -75,7 +80,12 @@ export default function App() {
     <BrowserRouter>
       <AuthProvider>
         <CartProvider>
-          <AppContent settings={settings} categories={categories} />
+          {preloaderActive && (
+            <SitePreloader onFinish={() => setPreloaderActive(false)} />
+          )}
+          <div className={preloaderActive ? '' : 'gz-page-enter'} style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+            <AppContent settings={settings} categories={categories} />
+          </div>
         </CartProvider>
       </AuthProvider>
     </BrowserRouter>

@@ -169,7 +169,7 @@ export default function OrdersPage() {
       {/* Header Bar */}
       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '18px' }}>
         <div>
-          <h1 style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.45rem', color: '#520612', fontWeight: 700 }}>
+          <h1 style={{ fontFamily: '"Plus Jakarta Sans", system-ui, -apple-system, sans-serif', fontSize: '1.45rem', color: '#520612', fontWeight: 700 }}>
             Orders Management
           </h1>
           <p style={{ fontSize: '0.78rem', color: '#64748B' }}>
@@ -349,18 +349,37 @@ export default function OrdersPage() {
                       <div style={{ fontWeight: 700, color: '#0F172A', fontSize: '0.88rem' }}>
                         ₹{ord.total_amount?.toLocaleString('en-IN')}
                       </div>
-                      <span style={{
-                        display: 'inline-block',
-                        fontSize: '0.70rem',
-                        fontWeight: 600,
-                        marginTop: '3px',
-                        padding: '2px 6px',
-                        borderRadius: '4px',
-                        backgroundColor: ord.payment_status === 'PAID' ? '#DCFCE7' : ord.payment_status === 'FAILED' ? '#FEE2E2' : '#FEF3C7',
-                        color: ord.payment_status === 'PAID' ? '#166534' : ord.payment_status === 'FAILED' ? '#991B1B' : '#92400E'
-                      }}>
-                        {ord.payment_status === 'PAID' ? '● Razorpay Paid' : ord.payment_status || 'Razorpay Pending'}
-                      </span>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginTop: '3px' }}>
+                        <span style={{
+                          display: 'inline-block',
+                          fontSize: '0.68rem',
+                          fontWeight: 700,
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                          backgroundColor: ord.payment_mode === 'COD' ? '#FEF3C7' : '#DCFCE7',
+                          color: ord.payment_mode === 'COD' ? '#92400E' : '#166534',
+                          width: 'fit-content'
+                        }}>
+                          {ord.payment_mode === 'COD' ? 'COD (₹200 Adv)' : 'ONLINE PREPAID'}
+                        </span>
+                        {ord.payment_mode === 'COD' && (
+                          <span style={{ fontSize: '0.68rem', fontWeight: 600, color: '#B45309' }}>
+                            Collect: ₹{Number(ord.remaining_cod_amount || 0).toLocaleString('en-IN')}
+                          </span>
+                        )}
+                        <span style={{
+                          display: 'inline-block',
+                          fontSize: '0.68rem',
+                          fontWeight: 600,
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                          backgroundColor: ord.payment_status === 'PAID' ? '#DCFCE7' : ord.payment_status === 'FAILED' ? '#FEE2E2' : '#FEF3C7',
+                          color: ord.payment_status === 'PAID' ? '#166534' : ord.payment_status === 'FAILED' ? '#991B1B' : '#92400E',
+                          width: 'fit-content'
+                        }}>
+                          {ord.payment_status === 'PAID' ? '● Razorpay Verified' : ord.payment_status || 'Pending'}
+                        </span>
+                      </div>
                       {ord.razorpay_order_id && (
                         <div style={{ fontSize: '0.66rem', color: '#64748B', marginTop: '2px', fontFamily: 'monospace' }}>
                           {ord.razorpay_order_id}
@@ -573,7 +592,7 @@ export default function OrdersPage() {
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid #E2E8F0', paddingBottom: '10px' }}>
               <div>
-                <h3 style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.2rem', color: '#520612', fontWeight: 700 }}>
+                <h3 style={{ fontFamily: '"Plus Jakarta Sans", system-ui, -apple-system, sans-serif', fontSize: '1.2rem', color: '#520612', fontWeight: 700 }}>
                   Order {selectedOrder.order_number}
                 </h3>
                 <span style={{ fontSize: '0.74rem', color: '#64748B' }}>
@@ -598,7 +617,18 @@ export default function OrdersPage() {
               marginBottom: '16px'
             }}>
               <p><strong>Customer:</strong> {selectedOrder.full_name} (+91 {selectedOrder.primary_mobile})</p>
-              <p><strong>Payment Status:</strong> <span style={{ fontWeight: 700, color: selectedOrder.payment_status === 'PAID' ? '#16A34A' : selectedOrder.payment_status === 'FAILED' ? '#DC2626' : '#D97706' }}>{selectedOrder.payment_status === 'PAID' ? '● Razorpay Paid' : selectedOrder.payment_status || 'PENDING'}</span> {selectedOrder.razorpay_order_id ? `(${selectedOrder.razorpay_order_id})` : ''}</p>
+              <p>
+                <strong>Payment Mode:</strong>{' '}
+                <span style={{ fontWeight: 700, color: selectedOrder.payment_mode === 'COD' ? '#B45309' : '#16A34A' }}>
+                  {selectedOrder.payment_mode === 'COD' ? 'Cash on Delivery' : 'Online Prepaid'}
+                </span>
+                {selectedOrder.payment_mode === 'COD' && (
+                  <span style={{ fontSize: '0.74rem', marginLeft: '6px', color: '#64748B' }}>
+                    (Advance Paid: ₹{Number(selectedOrder.advance_amount || 0).toLocaleString('en-IN')} | Remaining to Collect: ₹{Number(selectedOrder.remaining_cod_amount || 0).toLocaleString('en-IN')})
+                  </span>
+                )}
+              </p>
+              <p><strong>Payment Status:</strong> <span style={{ fontWeight: 700, color: selectedOrder.payment_status === 'PAID' ? '#16A34A' : selectedOrder.payment_status === 'FAILED' ? '#DC2626' : '#D97706' }}>{selectedOrder.payment_status === 'PAID' ? '● Razorpay Verified' : selectedOrder.payment_status || 'PENDING'}</span> {selectedOrder.razorpay_order_id ? `(${selectedOrder.razorpay_order_id})` : ''}</p>
               <p><strong>Address:</strong> {selectedOrder.address}</p>
               <p><strong>Region:</strong> {selectedOrder.city || selectedOrder.village}, {selectedOrder.district}, {selectedOrder.state} - {selectedOrder.pincode}</p>
               {selectedOrder.directions_url && (

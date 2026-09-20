@@ -35,7 +35,7 @@ async function initializeDatabase() {
     console.log('🌱 Executing database/seed.sql...');
     const seedSql = fs.readFileSync(seedPath, 'utf8');
     await connection.query(seedSql);
-    console.log('✅ Database seeded successfully with 26 demo products, admin account, categories, reviews, and settings.');
+    console.log('✅ Database seeded successfully with 26 initial products, admin account, categories, and settings.');
 
     await connection.end();
     console.log('🎉 Database initialization complete!');

@@ -3,7 +3,6 @@ import { settingService } from '../services/api';
 import { InstagramIcon, WhatsAppIcon } from '../components/Icons';
 import {
   Phone,
-  MessageCircle,
   Mail,
   Users,
   Send,
@@ -29,18 +28,21 @@ export default function ContactPage({ settings = {} }) {
   const [successMsg, setSuccessMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
 
-  // Values configured dynamically from admin/site settings with sensible brand fallbacks
-  const phone = settings.contact_phone || '+917976580806';
-  const whatsappNumber = settings.whatsapp_number || '+917976580806';
-  const whatsappName = settings.whatsapp_contact_name || 'Rakesh Kumar';
+  // Values configured dynamically from centralized site settings
+  const phone = settings.contact_phone || '9286129921';
+  const whatsappNumber = settings.whatsapp_number || '+91 92861 29921';
+  const whatsappName = settings.whatsapp_contact_name || 'Golden Zone Care';
   const whatsappUrl =
     settings.whatsapp_chat_url ||
     `https://wa.me/${whatsappNumber.replace(/\D/g, '')}?text=${encodeURIComponent(
       'Hello Golden Zone, I would like to inquire about your 1 gram gold-plated jewellery collection.'
     )}`;
-  const instagramUrl = settings.instagram_url || 'https://instagram.com/goldenzone_official';
-  const instagramUsername = settings.instagram_username || '@goldenzone_official';
-  const email = settings.contact_email || 'support@goldenzone.com';
+  const instagramUrl = settings.instagram_url || 'https://www.instagram.com/goldenzone.in';
+  const instagramUsername = settings.instagram_username || '@goldenzone.in';
+  const email = settings.contact_email || 'goldenzone676@gmail.com';
+  const supportEmail = settings.support_email || 'support@goldenzone.in';
+  const companyAddress = settings.company_address || 'Jyoti Nagar, Sanchore, Rajasthan, Jalore';
+  const companyPincode = settings.company_pincode || '343041';
   const whatsappGroupUrl = settings.whatsapp_group_url || 'https://chat.whatsapp.com/invite/goldenzone';
 
   const handleChange = (e) => {
@@ -103,7 +105,7 @@ export default function ContactPage({ settings = {} }) {
           <Sparkles size={12} /> WE ARE HERE TO HELP
         </span>
         <h1 style={{
-          fontFamily: 'Playfair Display, serif',
+          fontFamily: '"Plus Jakarta Sans", system-ui, -apple-system, sans-serif',
           fontSize: '2rem',
           color: '#520612',
           fontWeight: 700,
@@ -162,7 +164,7 @@ export default function ContactPage({ settings = {} }) {
                 justifyContent: 'center',
                 flexShrink: 0
               }}>
-                <MessageCircle size={24} color="#166534" />
+                <WhatsAppIcon size={26} />
               </div>
               <div>
                 <span style={{ fontSize: '0.72rem', color: '#166534', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
@@ -217,7 +219,7 @@ export default function ContactPage({ settings = {} }) {
                 justifyContent: 'center',
                 flexShrink: 0
               }}>
-                <Users size={24} color="#C5A059" />
+                <WhatsAppIcon size={26} />
               </div>
               <div>
                 <span style={{ fontSize: '0.72rem', color: '#7D5C1E', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
@@ -365,13 +367,18 @@ export default function ContactPage({ settings = {} }) {
               </div>
               <div>
                 <span style={{ fontSize: '0.70rem', color: '#8E857C', fontWeight: 600, textTransform: 'uppercase' }}>
-                  Email Support
+                  Primary Email Support
                 </span>
                 <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#1F1A17' }}>
                   {email}
                 </h3>
+                {supportEmail && supportEmail !== email && (
+                  <p style={{ fontSize: '0.74rem', color: '#520612', fontWeight: 600, marginTop: '2px' }}>
+                    Alt: {supportEmail}
+                  </p>
+                )}
                 <p style={{ fontSize: '0.74rem', color: '#6B635B' }}>
-                  Official inquiries & custom orders
+                  Official customer inquiries & order assistance
                 </p>
               </div>
             </div>
@@ -379,6 +386,43 @@ export default function ContactPage({ settings = {} }) {
               Email
             </span>
           </a>
+
+          {/* Registered Office Address Card */}
+          <div
+            style={{
+              backgroundColor: '#FAF7F2',
+              borderRadius: '14px',
+              border: '1px solid #E8E2D9',
+              padding: '16px 20px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '14px'
+            }}
+          >
+            <div style={{
+              backgroundColor: '#F3ECE1',
+              borderRadius: '12px',
+              width: '44px',
+              height: '44px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0
+            }}>
+              <MapPin size={22} color="#C5A059" />
+            </div>
+            <div>
+              <span style={{ fontSize: '0.70rem', color: '#C5A059', fontWeight: 700, textTransform: 'uppercase' }}>
+                Office Address
+              </span>
+              <h3 style={{ fontSize: '0.90rem', fontWeight: 700, color: '#1F1A17', marginTop: '2px' }}>
+                {companyAddress}
+              </h3>
+              <p style={{ fontSize: '0.75rem', color: '#6B635B', marginTop: '2px' }}>
+                PIN: {companyPincode}
+              </p>
+            </div>
+          </div>
 
           {/* Assurance info pill */}
           <div style={{
@@ -405,7 +449,7 @@ export default function ContactPage({ settings = {} }) {
           boxShadow: '0 4px 20px rgba(82, 6, 18, 0.05)'
         }}>
           <h2 style={{
-            fontFamily: 'Playfair Display, serif',
+            fontFamily: '"Plus Jakarta Sans", system-ui, -apple-system, sans-serif',
             fontSize: '1.25rem',
             color: '#520612',
             fontWeight: 700,

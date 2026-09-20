@@ -29,40 +29,27 @@ ON DUPLICATE KEY UPDATE `name` = VALUES(`name`), `image_url` = VALUES(`image_url
 -- 3. Seed Site Settings
 INSERT INTO `site_settings` (`setting_key`, `setting_value`, `description`)
 VALUES
-  ('hero_image', 'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?q=80&w=1600&auto=format&fit=crop', 'Hero banner static image URL'),
+  ('hero_video_url', 'https://res.cloudinary.com/dgxaol7mz/video/upload/v1789876791/videoplayback_hwcfti.mp4', 'Hero background video URL'),
+  ('hero_image', 'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?q=80&w=1600&auto=format&fit=crop', 'Hero banner fallback image URL'),
   ('hero_title', 'Golden Zone', 'Homepage hero banner main heading'),
   ('hero_subtitle', 'Discover premium 1 gram gold-plated jewellery crafted to complement your style with timeless elegance.', 'Hero banner descriptive subheading'),
-  ('announcement_bar', 'PREMIUM 1 GRAM GOLD-PLATED JEWELLERY | SAME DAY DISPATCH | FREE SHIPPING ON PREPAID', 'Header announcement strip text'),
+  ('announcement_bar', 'PREMIUM 1 GRAM GOLD-PLATED JEWELLERY • SAME DAY DISPATCH • 100% INSURED TRANSIT • VERIFIED COD AVAILABLE', 'Header announcement and hero marquee ticker text'),
   ('brand_description', 'Golden Zone brings thoughtfully designed 1 gram gold-plated jewellery for everyday and occasion wear. Timeless styling, rich aesthetics, and trustworthy craftsmanship.', 'Brand about snippet in footer and about page'),
-  ('instagram_url', 'https://instagram.com/goldenzone_official', 'Instagram profile URL'),
-  ('instagram_username', '@goldenzone_official', 'Instagram handle display'),
-  ('whatsapp_number', '+917976580806', 'WhatsApp support mobile number'),
-  ('whatsapp_contact_name', 'Rakesh Kumar', 'WhatsApp support contact person name'),
-  ('whatsapp_chat_url', 'https://wa.me/917976580806?text=Hello,%20I%20want%20to%20know%20more%20about%20Golden%20Zone%20jewellery.', 'Direct WhatsApp chat link with prefilled text'),
+  ('instagram_url', 'https://www.instagram.com/goldenzone.in', 'Instagram profile URL'),
+  ('instagram_username', '@goldenzone.in', 'Instagram handle display'),
+  ('whatsapp_number', '+91 92861 29921', 'WhatsApp support mobile number'),
+  ('whatsapp_contact_name', 'Golden Zone Care', 'WhatsApp support contact person name'),
+  ('whatsapp_chat_url', 'https://wa.me/919286129921?text=Hello,%20I%20want%20to%20know%20more%20about%20Golden%20Zone%20jewellery.', 'Direct WhatsApp chat link with prefilled text'),
   ('whatsapp_group_url', 'https://chat.whatsapp.com/invite/goldenzone', 'Official WhatsApp community / VIP customer group link'),
-  ('contact_phone', '+917976580806', 'Main telephone contact number'),
-  ('contact_email', 'support@goldenzone.com', 'Official support email address'),
+  ('contact_phone', '9286129921', 'Main telephone contact number'),
+  ('contact_email', 'goldenzone676@gmail.com', 'Primary official support email'),
+  ('support_email', 'support@goldenzone.in', 'Secondary official support email'),
+  ('company_address', 'Jyoti Nagar, Sanchore, Rajasthan, Jalore', 'Registered office address'),
+  ('company_pincode', '343041', 'Office postal PIN code'),
   ('footer_text', '© 2026 Golden Zone. All rights reserved. Specializing exclusively in 1 Gram Gold-Plated Jewellery.', 'Footer copyright line')
 ON DUPLICATE KEY UPDATE `setting_value` = VALUES(`setting_value`);
 
--- 4. Seed Demo Customer
-INSERT INTO `customers` (`id`, `mobile_number`, `secondary_mobile`, `full_name`, `address`, `state`, `district`, `city`, `village`, `pincode`, `latitude`, `longitude`)
-VALUES (
-  1,
-  '9876543210',
-  '9829012345',
-  'Ramesh Verma',
-  'House 42, Civil Lines, Near Railway Station',
-  'Rajasthan',
-  'Jaipur',
-  'Jaipur',
-  'Civil Lines',
-  '302001',
-  26.91243400,
-  75.78727100
-) ON DUPLICATE KEY UPDATE `full_name` = VALUES(`full_name`);
-
--- 5. Seed 26 Demo Products
+-- 4. Seed 26 Official Products
 INSERT INTO `products` (`id`, `sku`, `name`, `slug`, `category_id`, `description`, `regular_price`, `discounted_price`, `is_recommended`, `is_bestseller`, `is_new_arrival`, `is_out_of_stock`, `is_active`, `tags`)
 VALUES
 (1, 'KAL-BAL-001', 'Signature Royal Men\'s Bali', 'signature-royal-mens-bali', 3, 'Designed for everyday styling, this 1 gram gold-plated piece combines a classic look with a lightweight and versatile design. Polished finish suitable for daily wear.', 1200.00, 900.00, 1, 1, 0, 0, 1, 'bali,mens,earring,1gram'),
@@ -182,14 +169,4 @@ INSERT INTO `product_images` (`product_id`, `image_url`, `image_order`) VALUES
 
 (26, 'https://pashupati.co/cdn/shop/files/749DDE54-E10E-405E-93B5-1D664059F8FC.jpg?v=1767793689&width=300', 1),
 (26, 'https://pashupati.co/cdn/shop/files/749DDE54-E10E-405E-93B5-1D664059F8FC.jpg?v=1767793689&width=300', 2);
-
--- 7. Seed Reviews
-INSERT INTO `reviews` (`product_id`, `customer_name`, `rating`, `review_text`, `image_url`, `is_approved`)
-VALUES
-(1, 'Vikram Rathore', 5, 'Superb finish! Looks very premium and feels like pure gold. Very comfortable for everyday wear.', 'https://pashupati.co/cdn/shop/files/B35A6888-45CE-4752-A4A2-7951A478EA61.jpg?v=1775994142&width=600', 1),
-(1, 'Bansil Gadara', 5, 'Worth the price! Delivered in 2 days. The 1 gram gold plating finish is very neat and clean.', NULL, 1),
-(2, 'Amit Sharma', 5, 'Heavy look chain! The rope design shines naturally under sunlight. Good packaging too.', 'https://pashupati.co/cdn/shop/files/528C0149-8522-4CAE-8A08-313DF350EA25.jpg?v=1786735225&width=600', 1),
-(3, 'Naveen Kumar', 4, 'Nice compact bali. Lightweight and does not irritate skin.', NULL, 1),
-(5, 'Suresh Choudhary', 5, 'The Maharaja kada is just fantastic. Heavy weight feel and the engraving looks royal.', 'https://pashupati.co/cdn/shop/files/47D1911A-421F-494C-BB77-72A38D9A850B.jpg?v=1779897918&width=600', 1),
-(7, 'Deepak Soni', 5, 'Best 1 gram gold-plated Cuban chain I have bought online. Highly recommended!', NULL, 1);
 

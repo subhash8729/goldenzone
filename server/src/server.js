@@ -15,9 +15,9 @@ async function startServer() {
 
   app.listen(config.port, () => {
     console.log(`======================================================`);
-    console.log(`💎 Golden Zone API Server running on port ${config.port}`);
+    console.log(`💎 Golden Zone Server running on port ${config.port}`);
+    console.log(`🌐 Storefront: http://localhost:${config.port}`);
     console.log(`🔗 API Base: http://localhost:${config.port}/api`);
-    console.log(`📱 Dev OTP: ${config.devOtp}`);
     console.log(`👑 Admin Mobile: ${config.adminMobile}`);
     console.log(`======================================================`);
   });

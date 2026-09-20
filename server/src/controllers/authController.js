@@ -38,10 +38,12 @@ exports.sendCustomerOtp = async (req, res, next) => {
     return res.status(200).json({
       success: true,
       message: result.message,
-      demoNote: result.demoNote,
       mobile: cleanMobile
     });
   } catch (error) {
+    if (error.status) {
+      return res.status(error.status).json({ success: false, message: error.message });
+    }
     next(error);
   }
 };
@@ -178,7 +180,34 @@ exports.getCustomerProfile = async (req, res, next) => {
 // ADMIN AUTHENTICATION
 // ----------------------------------------------------
 
-// 1. Admin login: Mobile + OTP + Password
+// 1. Send OTP to registered admin mobile
+exports.adminSendOtp = async (req, res, next) => {
+  try {
+    const { mobile_number } = req.body;
+    if (!mobile_number) {
+      return res.status(400).json({ success: false, message: 'Admin mobile number is required' });
+    }
+
+    const cleanMobile = mobile_number.replace(/\D/g, '').slice(-10);
+    const admins = await db.query('SELECT id, mobile_number FROM admins WHERE mobile_number = ?', [cleanMobile]);
+    if (admins.length === 0) {
+      return res.status(403).json({ success: false, message: 'This mobile number is not registered for administrator access.' });
+    }
+
+    const result = await otpService.sendOtp(cleanMobile);
+    return res.status(200).json({
+      success: true,
+      message: result.message || `Admin OTP sent to registered mobile.`
+    });
+  } catch (error) {
+    if (error.status) {
+      return res.status(error.status).json({ success: false, message: error.message });
+    }
+    next(error);
+  }
+};
+
+// 2. Admin login: Mobile + OTP + Password
 exports.adminLogin = async (req, res, next) => {
   try {
     const { mobile_number, password, otp } = req.body;

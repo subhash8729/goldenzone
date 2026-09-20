@@ -39,7 +39,7 @@ export default function ReviewsSection({ reviews = [], productId, onReviewSubmit
     <div style={{ marginTop: '24px', paddingTop: '20px', borderTop: '1px solid #E8E2D9' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
         <div>
-          <h3 style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.25rem', color: '#520612', fontWeight: 700 }}>
+          <h3 style={{ fontFamily: '"Plus Jakarta Sans", system-ui, -apple-system, sans-serif', fontSize: '1.25rem', color: '#520612', fontWeight: 700 }}>
             Customer Reviews
           </h3>
           <p style={{ fontSize: '0.78rem', color: '#6B635B' }}>

@@ -70,7 +70,7 @@ export default function AdminNotesPage() {
   return (
     <div style={{ maxWidth: '800px' }}>
       <div style={{ marginBottom: '20px' }}>
-        <h1 style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.45rem', color: '#520612', fontWeight: 700 }}>
+        <h1 style={{ fontFamily: '"Plus Jakarta Sans", system-ui, -apple-system, sans-serif', fontSize: '1.45rem', color: '#520612', fontWeight: 700 }}>
           Admin Remarks & General Notebook
         </h1>
         <p style={{ fontSize: '0.78rem', color: '#64748B' }}>

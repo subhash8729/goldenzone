@@ -19,13 +19,16 @@ module.exports = {
   },
   jwtSecret: process.env.JWT_SECRET || 'kalyani_jewellers_secure_jwt_secret_2026',
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',
-  devOtp: process.env.DEV_OTP || '987654',
   adminMobile: process.env.ADMIN_MOBILE || '7976580806',
   clientUrl: process.env.CLIENT_URL || 'http://localhost:5173',
   adminUrl: process.env.ADMIN_URL || 'http://localhost:5174',
   googleMapsBaseUrl: process.env.GOOGLE_MAPS_BASE_URL || 'https://www.google.com/maps',
   razorpayKeyId: process.env.RAZORPAY_KEY_ID || '',
   razorpayKeySecret: process.env.RAZORPAY_KEY_SECRET || '',
-  razorpayWebhookSecret: process.env.RAZORPAY_WEBHOOK_SECRET || ''
+  razorpayWebhookSecret: process.env.RAZORPAY_WEBHOOK_SECRET || '',
+  renflairApiKey: process.env.RENFLAIR_API_KEY || '',
+  renflairApiUrl: process.env.RENFLAIR_API_URL || 'https://sms.renflair.in/V1.php',
+  appDomain: process.env.APP_DOMAIN || 'goldenzone.in',
+  appName: process.env.APP_NAME || 'Golden Zone'
 };
 

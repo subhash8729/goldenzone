@@ -1,31 +1,37 @@
 import React from 'react';
-import { Truck, ShieldCheck, Sparkles } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 
 export default function AnnouncementBar({ text }) {
-  const defaultText = 'PREMIUM 1 GRAM GOLD-PLATED JEWELLERY | SAME DAY DISPATCH | FREE SHIPPING ON PREPAID';
-  const displayText = text || defaultText;
+  const defaultText = 'PREMIUM 1 GRAM GOLD-PLATED JEWELLERY • SAME DAY DISPATCH • 100% INSURED TRANSIT • VERIFIED COD AVAILABLE';
+  const rawText = text || defaultText;
+
+  // Split by bullet or pipe if present to create rich items
+  const items = rawText
+    .split(/[•|]/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  const marqueeItems = items.length > 0 ? items : [rawText];
+
+  const renderGroup = (keyPrefix) => (
+    <div className="marquee-group" key={keyPrefix}>
+      {marqueeItems.map((item, idx) => (
+        <span className="marquee-item" key={`${keyPrefix}-${idx}`}>
+          <Sparkles size={12} color="#C5A059" style={{ flexShrink: 0 }} />
+          <span>{item}</span>
+          <span className="marquee-bullet">•</span>
+        </span>
+      ))}
+    </div>
+  );
 
   return (
-    <div style={{
-      backgroundColor: '#520612',
-      color: '#F5E8C7',
-      padding: '8px 12px',
-      fontSize: '0.74rem',
-      fontWeight: 600,
-      letterSpacing: '0.06em',
-      textTransform: 'uppercase',
-      textAlign: 'center',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: '8px',
-      overflow: 'hidden'
-    }}>
-      <Sparkles size={13} color="#C5A059" style={{ flexShrink: 0 }} />
-      <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-        {displayText}
-      </span>
-      <Sparkles size={13} color="#C5A059" style={{ flexShrink: 0 }} />
+    <div className="marquee-container" aria-label="Announcement ticker">
+      <div className="marquee-track">
+        {/* Render 2 identical groups to create a seamless infinite loop with 0 jump */}
+        {renderGroup('grp-1')}
+        {renderGroup('grp-2')}
+      </div>
     </div>
   );
 }

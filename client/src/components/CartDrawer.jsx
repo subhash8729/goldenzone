@@ -46,7 +46,7 @@ export default function CartDrawer() {
           justifyContent: 'space-between'
         }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-            <h3 style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.15rem', fontWeight: 700, color: '#520612' }}>
+            <h3 style={{ fontFamily: '"Plus Jakarta Sans", system-ui, -apple-system, sans-serif', fontSize: '1.15rem', fontWeight: 700, color: '#520612' }}>
               Your Jewellery Bag
             </h3>
             <span style={{ fontSize: '0.80rem', color: '#8E857C' }}>

@@ -36,6 +36,8 @@ api.interceptors.response.use(
 );
 
 export const adminAuthService = {
+  sendOtp: (mobile_number) =>
+    api.post('/auth/admin/send-otp', { mobile_number }),
   login: (mobile_number, password, otp) =>
     api.post('/auth/admin/login', { mobile_number, password, otp }),
   getProfile: () => api.get('/auth/admin/profile'),

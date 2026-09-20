@@ -57,7 +57,7 @@ export default function DashboardPage() {
         marginBottom: '20px'
       }}>
         <div>
-          <h1 style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.5rem', color: '#520612', fontWeight: 700 }}>
+          <h1 style={{ fontFamily: '"Plus Jakarta Sans", system-ui, -apple-system, sans-serif', fontSize: '1.5rem', color: '#520612', fontWeight: 700 }}>
             Dashboard Overview
           </h1>
           <p style={{ fontSize: '0.80rem', color: '#64748B' }}>
@@ -234,7 +234,7 @@ export default function DashboardPage() {
         boxShadow: '0 1px 3px rgba(0,0,0,0.03)'
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-          <h2 style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.15rem', color: '#520612', fontWeight: 700 }}>
+          <h2 style={{ fontFamily: '"Plus Jakarta Sans", system-ui, -apple-system, sans-serif', fontSize: '1.15rem', color: '#520612', fontWeight: 700 }}>
             Recent Orders
           </h2>
           <Link to="/orders" className="btn-secondary" style={{ fontSize: '0.76rem', padding: '5px 12px' }}>

@@ -45,7 +45,7 @@ export default function SiteSettingsPage() {
   return (
     <div style={{ maxWidth: '800px' }}>
       <div style={{ marginBottom: '20px' }}>
-        <h1 style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.45rem', color: '#520612', fontWeight: 700 }}>
+        <h1 style={{ fontFamily: '"Plus Jakarta Sans", system-ui, -apple-system, sans-serif', fontSize: '1.45rem', color: '#520612', fontWeight: 700 }}>
           Site Settings & Brand Configuration
         </h1>
         <p style={{ fontSize: '0.78rem', color: '#64748B' }}>
@@ -78,7 +78,21 @@ export default function SiteSettingsPage() {
           </h3>
           <div style={{ display: 'grid', gap: '12px' }}>
             <div>
-              <label className="form-label">Static Hero Image URL</label>
+              <label className="form-label">Hero Background Video URL (MP4 / WebM)</label>
+              <input
+                type="url"
+                value={settings.hero_video_url || ''}
+                onChange={(e) => handleChange('hero_video_url', e.target.value)}
+                placeholder="https://res.cloudinary.com/.../video.mp4"
+                className="form-input"
+              />
+              <p style={{ fontSize: '0.72rem', color: '#64748B', marginTop: '3px' }}>
+                Video autoplays seamlessly in the hero section across mobile and desktop devices.
+              </p>
+            </div>
+
+            <div>
+              <label className="form-label">Hero Fallback Image / Poster URL</label>
               <input
                 type="url"
                 value={settings.hero_image || ''}
@@ -146,7 +160,7 @@ export default function SiteSettingsPage() {
                 type="text"
                 value={settings.whatsapp_number || ''}
                 onChange={(e) => handleChange('whatsapp_number', e.target.value)}
-                placeholder="+917976580806"
+                placeholder="+91 92861 29921"
                 className="form-input"
               />
             </div>
@@ -156,7 +170,7 @@ export default function SiteSettingsPage() {
                 type="text"
                 value={settings.whatsapp_contact_name || ''}
                 onChange={(e) => handleChange('whatsapp_contact_name', e.target.value)}
-                placeholder="Rakesh Kumar"
+                placeholder="Golden Zone Support"
                 className="form-input"
               />
             </div>
@@ -169,15 +183,17 @@ export default function SiteSettingsPage() {
                 type="text"
                 value={settings.contact_phone || ''}
                 onChange={(e) => handleChange('contact_phone', e.target.value)}
+                placeholder="9286129921"
                 className="form-input"
               />
             </div>
             <div>
-              <label className="form-label">Official Support Email</label>
+              <label className="form-label">Primary Contact Email</label>
               <input
                 type="email"
                 value={settings.contact_email || ''}
                 onChange={(e) => handleChange('contact_email', e.target.value)}
+                placeholder="goldenzone676@gmail.com"
                 className="form-input"
               />
             </div>
@@ -185,12 +201,12 @@ export default function SiteSettingsPage() {
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: '12px' }}>
             <div>
-              <label className="form-label">WhatsApp VIP Group Link</label>
+              <label className="form-label">Secondary Support Email</label>
               <input
-                type="url"
-                value={settings.whatsapp_group_url || ''}
-                onChange={(e) => handleChange('whatsapp_group_url', e.target.value)}
-                placeholder="https://chat.whatsapp.com/..."
+                type="email"
+                value={settings.support_email || ''}
+                onChange={(e) => handleChange('support_email', e.target.value)}
+                placeholder="support@goldenzone.in"
                 className="form-input"
               />
             </div>
@@ -200,9 +216,44 @@ export default function SiteSettingsPage() {
                 type="url"
                 value={settings.instagram_url || ''}
                 onChange={(e) => handleChange('instagram_url', e.target.value)}
+                placeholder="https://www.instagram.com/goldenzone.in"
                 className="form-input"
               />
             </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '12px', marginTop: '12px' }}>
+            <div>
+              <label className="form-label">Store / Company Address</label>
+              <input
+                type="text"
+                value={settings.company_address || ''}
+                onChange={(e) => handleChange('company_address', e.target.value)}
+                placeholder="Jyoti Nagar, Sanchore, Rajasthan, Jalore"
+                className="form-input"
+              />
+            </div>
+            <div>
+              <label className="form-label">PIN Code</label>
+              <input
+                type="text"
+                value={settings.company_pincode || ''}
+                onChange={(e) => handleChange('company_pincode', e.target.value)}
+                placeholder="343041"
+                className="form-input"
+              />
+            </div>
+          </div>
+
+          <div style={{ marginTop: '12px' }}>
+            <label className="form-label">WhatsApp VIP Group Link</label>
+            <input
+              type="url"
+              value={settings.whatsapp_group_url || ''}
+              onChange={(e) => handleChange('whatsapp_group_url', e.target.value)}
+              placeholder="https://chat.whatsapp.com/..."
+              className="form-input"
+            />
           </div>
         </div>
 

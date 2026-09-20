@@ -7,18 +7,37 @@ A production-structured, lightweight, and modern jewellery e-commerce platform d
 
 ---
 
-## 🏛 Architecture Overview
+## 🏛 Production Architecture Overview
 
+```text
+Production domain (e.g., https://goldenzone.in)
+      │
+      ▼
+Node / Express Server
+      │
+      ├── /api/*  → Backend REST APIs (auth, products, orders, payments, webhooks)
+      │
+      └── /*      → client/dist (React SPA production build)
+
+Admin domain (e.g., https://admin.goldenzone.in or separate port)
+      │
+      ▼
+Separate Admin React application
+      │
+      └── calls Backend API (/api/*) with CORS authorization
+```
+
+### Directory Structure
 ```
 /
 ├── client/          # Customer storefront (React 18 + Vite + React Router + Context API + Lucide)
 ├── admin/           # Administrative control dashboard (React 18 + Vite + Lucide)
-├── server/          # REST API server (Node.js + Express + MySQL2 + JWT + bcrypt + rate limiting)
+├── server/          # REST API & static server (Node.js + Express + MySQL2 + JWT + bcrypt + rate limiting)
 ├── database/
 │   ├── schema.sql   # Relational InnoDB MySQL database schema
-│   └── seed.sql     # Seed data: Categories, 26 demo products, gallery images, admin, reviews, settings
+│   └── seed.sql     # Initial data: Categories, 26 products, admin, settings
 ├── README.md        # Comprehensive setup and usage documentation
-├── package.json     # Workspace management commands
+├── package.json     # Root scripts (start, build, client, admin, server)
 └── .gitignore
 ```
 
@@ -100,8 +119,14 @@ DB_NAME=kalyani_jewellers
 JWT_SECRET=kalyani_jewellers_secure_jwt_secret_2026_super_key
 JWT_EXPIRES_IN=7d
 
-# Demo OTP Configuration (Configurable via environment variable)
-DEV_OTP=987654
+# Renflair SMS API Configuration
+RENFLAIR_API_KEY=your_renflair_sms_api_key
+RENFLAIR_SENDER_ID=GNZONE
+
+# Razorpay Production API
+RAZORPAY_KEY_ID=your_live_razorpay_key_id
+RAZORPAY_KEY_SECRET=your_live_razorpay_key_secret
+RAZORPAY_WEBHOOK_SECRET=your_razorpay_webhook_secret
 
 # Initial Admin Credentials
 ADMIN_MOBILE=7976580806
@@ -235,17 +260,17 @@ The production assets are generated in `client/dist` and `admin/dist`.
 
 ---
 
-## 7. Default Admin Login & Demo OTP
-
+## 7. Production Admin & Customer Authentication
+ 
 ### Admin Portal Credentials
 - **URL**: [http://localhost:5174](http://localhost:5174)
 - **Mobile Number**: `7976580806`
-- **Password**: `Subhash29` (stored as bcrypt hash `$2a$10$KNyZ3oLFC//hn/R5cjsiC.v63NGbbQwJZTlY/.NXl8BpsS..rFmLu`)
-- **Demo OTP**: `987654`
-
+- **Password**: `Subhash29` (stored as bcrypt hash in database)
+- **Production OTP**: Secure 6-digit dynamic OTP delivered via Renflair SMS API directly to the admin mobile number.
+ 
 ### Customer Storefront OTP Authentication
-- Any valid 10-digit mobile number can be entered.
-- **Current Demo OTP**: `987654` (abstracted behind `otpService.js` for seamless replacement with SMS gateways like Twilio, MSG91, or Fast2SMS).
+- Any valid 10-digit Indian mobile number can be entered.
+- **Production OTP Verification**: Cryptographic 6-digit dynamic OTP sent via Renflair SMS Gateway with 5-minute validity and attempt rate-limiting.
 
 ---
 

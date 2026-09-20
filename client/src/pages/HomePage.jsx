@@ -6,7 +6,8 @@ import CategoryGrid from '../components/CategoryGrid';
 import ProductCard from '../components/ProductCard';
 import { ProductGridSkeleton } from '../components/LoadingSkeleton';
 import { productService } from '../services/api';
-import { Sparkles, ArrowRight, ShieldCheck, Truck, RefreshCw, MessageCircle, Phone } from 'lucide-react';
+import { Sparkles, ArrowRight, ShieldCheck, Truck, RefreshCw, Phone } from 'lucide-react';
+import { WhatsAppIcon } from '../components/Icons';
 
 export default function HomePage({ settings = {}, categories = [] }) {
   const [bestsellers, setBestsellers] = useState([]);
@@ -82,7 +83,7 @@ export default function HomePage({ settings = {}, categories = [] }) {
       <section style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 12px 28px' }}>
         <div style={{ textAlign: 'center', marginBottom: '18px' }}>
           <h2 style={{
-            fontFamily: 'Playfair Display, serif',
+            fontFamily: '"Plus Jakarta Sans", system-ui, -apple-system, sans-serif',
             fontSize: '1.5rem',
             color: '#520612',
             fontWeight: 700,
@@ -147,7 +148,7 @@ export default function HomePage({ settings = {}, categories = [] }) {
             Craftsmanship & Everyday Luxury
           </span>
           <h2 style={{
-            fontFamily: 'Playfair Display, serif',
+            fontFamily: '"Plus Jakarta Sans", system-ui, -apple-system, sans-serif',
             fontSize: 'clamp(1.4rem, 4vw, 1.85rem)',
             fontWeight: 700,
             lineHeight: 1.3,
@@ -188,7 +189,7 @@ export default function HomePage({ settings = {}, categories = [] }) {
         <section style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 12px 32px' }}>
           <div style={{ textAlign: 'center', marginBottom: '18px' }}>
             <h2 style={{
-              fontFamily: 'Playfair Display, serif',
+              fontFamily: '"Plus Jakarta Sans", system-ui, -apple-system, sans-serif',
               fontSize: '1.5rem',
               color: '#520612',
               fontWeight: 700,
@@ -234,7 +235,7 @@ export default function HomePage({ settings = {}, categories = [] }) {
         textAlign: 'center'
       }}>
         <div style={{ maxWidth: '600px', margin: '0 auto' }}>
-          <h3 style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.3rem', color: '#520612', fontWeight: 700, marginBottom: '6px' }}>
+          <h3 style={{ fontFamily: '"Plus Jakarta Sans", system-ui, -apple-system, sans-serif', fontSize: '1.3rem', color: '#520612', fontWeight: 700, marginBottom: '6px' }}>
             Connect With Golden Zone
           </h3>
           <p style={{ fontSize: '0.80rem', color: '#6B635B', marginBottom: '20px' }}>
@@ -243,7 +244,7 @@ export default function HomePage({ settings = {}, categories = [] }) {
 
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', justifyContent: 'center' }}>
             <a
-              href={`https://wa.me/${(settings.whatsapp_number || '917976580806').replace(/\D/g, '')}?text=Hello,%20I%20want%20to%20know%20more%20about%20Golden%20Zone%20jewellery.`}
+              href={`https://wa.me/${(settings.whatsapp_number || '919286129921').replace(/\D/g, '')}?text=Hello,%20I%20want%20to%20know%20more%20about%20Golden%20Zone%20jewellery.`}
               target="_blank"
               rel="noopener noreferrer"
               style={{
@@ -259,11 +260,11 @@ export default function HomePage({ settings = {}, categories = [] }) {
                 textDecoration: 'none'
               }}
             >
-              <MessageCircle size={16} /> WhatsApp: {settings.whatsapp_contact_name || 'Rakesh Kumar'}
+              <WhatsAppIcon size={18} /> WhatsApp: {settings.whatsapp_contact_name || 'Golden Zone Support'}
             </a>
 
             <a
-              href={`tel:${settings.contact_phone || '+917976580806'}`}
+              href={`tel:${settings.contact_phone || '+919286129921'}`}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -298,7 +299,7 @@ export default function HomePage({ settings = {}, categories = [] }) {
                 textDecoration: 'none'
               }}
             >
-              <Sparkles size={16} color="#C5A059" /> Join WhatsApp VIP Group
+              <WhatsAppIcon size={18} /> Join WhatsApp VIP Group
             </a>
           </div>
         </div>

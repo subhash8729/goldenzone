@@ -14,12 +14,11 @@ import {
   Truck,
   ShieldCheck,
   ChevronDown,
-  ChevronRight,
-  MessageCircle,
   ArrowLeft,
   Sparkles,
   Check
 } from 'lucide-react';
+import { WhatsAppIcon } from '../components/Icons';
 
 export default function ProductDetailPage({ settings = {} }) {
   const { identifier } = useParams();
@@ -97,7 +96,7 @@ export default function ProductDetailPage({ settings = {} }) {
   if (error || !product) {
     return (
       <div style={{ maxWidth: '600px', margin: '60px auto', padding: '0 16px', textAlign: 'center' }}>
-        <h2 style={{ fontFamily: 'Playfair Display, serif', color: '#520612', marginBottom: '8px' }}>
+        <h2 style={{ fontFamily: '"Plus Jakarta Sans", system-ui, -apple-system, sans-serif', color: '#520612', marginBottom: '8px' }}>
           Product Not Found
         </h2>
         <p style={{ color: '#6B635B', marginBottom: '20px', fontSize: '0.88rem' }}>
@@ -152,7 +151,7 @@ export default function ProductDetailPage({ settings = {} }) {
               1 Gram Gold-Plated {product.category_name}
             </span>
             <h1 style={{
-              fontFamily: 'Playfair Display, serif',
+              fontFamily: '"Plus Jakarta Sans", system-ui, -apple-system, sans-serif',
               fontSize: 'clamp(1.2rem, 4vw, 1.5rem)',
               color: '#1F1A17',
               fontWeight: 700,
@@ -412,7 +411,7 @@ export default function ProductDetailPage({ settings = {} }) {
             textAlign: 'left'
           }}
         >
-          <span style={{ fontFamily: 'Playfair Display, serif', fontSize: '0.98rem', fontWeight: 700, color: '#520612' }}>
+          <span style={{ fontFamily: '"Plus Jakarta Sans", system-ui, -apple-system, sans-serif', fontSize: '0.98rem', fontWeight: 700, color: '#520612' }}>
             PRODUCT DETAILS & SPECIFICATIONS
           </span>
           <ChevronDown
@@ -465,7 +464,7 @@ export default function ProductDetailPage({ settings = {} }) {
       {/* 8. WhatsApp Quick Enquiry */}
       <div style={{ textAlign: 'center', marginBottom: '28px' }}>
         <a
-          href={`https://wa.me/${(settings.whatsapp_number || '917976580806').replace(/\D/g, '')}?text=${encodeURIComponent(`Hello, I want to inquire about "${product.name}" (SKU: ${product.sku}) on Golden Zone.`)}`}
+          href={`https://wa.me/${(settings.whatsapp_number || '919286129921').replace(/\D/g, '')}?text=${encodeURIComponent(`Hello, I want to inquire about "${product.name}" (SKU: ${product.sku}) on Golden Zone.`)}`}
           target="_blank"
           rel="noopener noreferrer"
           style={{
@@ -481,14 +480,14 @@ export default function ProductDetailPage({ settings = {} }) {
             textDecoration: 'none'
           }}
         >
-          <MessageCircle size={16} /> Have a Question? Chat on WhatsApp
+          <WhatsAppIcon size={18} /> Have a Question? Chat on WhatsApp
         </a>
       </div>
 
       {/* 9. "You May Also Like" Recommended Slider */}
       {product.related && product.related.length > 0 && (
         <div style={{ marginTop: '24px', marginBottom: '32px' }}>
-          <h3 style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.25rem', color: '#520612', fontWeight: 700, marginBottom: '14px' }}>
+          <h3 style={{ fontFamily: '"Plus Jakarta Sans", system-ui, -apple-system, sans-serif', fontSize: '1.25rem', color: '#520612', fontWeight: 700, marginBottom: '14px' }}>
             You May Also Like
           </h3>
           <div

@@ -257,7 +257,7 @@ export default function ProductsPage() {
       {/* Header Bar */}
       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '18px' }}>
         <div>
-          <h1 style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.45rem', color: '#520612', fontWeight: 700 }}>
+          <h1 style={{ fontFamily: '"Plus Jakarta Sans", system-ui, -apple-system, sans-serif', fontSize: '1.45rem', color: '#520612', fontWeight: 700 }}>
             Product Catalogue Management
           </h1>
           <p style={{ fontSize: '0.78rem', color: '#64748B' }}>
@@ -530,7 +530,7 @@ export default function ProductsPage() {
             boxShadow: '0 20px 40px rgba(0,0,0,0.2)'
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px', borderBottom: '1px solid #E2E8F0', paddingBottom: '12px' }}>
-              <h3 style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.25rem', color: '#520612', fontWeight: 700 }}>
+              <h3 style={{ fontFamily: '"Plus Jakarta Sans", system-ui, -apple-system, sans-serif', fontSize: '1.25rem', color: '#520612', fontWeight: 700 }}>
                 Add New 1 Gram Gold-Plated Piece
               </h3>
               <button onClick={resetForm} style={{ background: 'none', border: 'none', color: '#64748B', cursor: 'pointer' }}>
@@ -735,7 +735,7 @@ export default function ProductsPage() {
             boxShadow: '0 20px 40px rgba(0,0,0,0.2)'
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid #E2E8F0', paddingBottom: '10px' }}>
-              <h3 style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.25rem', color: '#520612', fontWeight: 700 }}>
+              <h3 style={{ fontFamily: '"Plus Jakarta Sans", system-ui, -apple-system, sans-serif', fontSize: '1.25rem', color: '#520612', fontWeight: 700 }}>
                 Edit Product Details
               </h3>
               <button onClick={() => setEditingProduct(null)} style={{ background: 'none', border: 'none', color: '#64748B', cursor: 'pointer' }}>

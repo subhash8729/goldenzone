@@ -184,45 +184,85 @@ exports.handlePaymentFailed = async (req, res, next) => {
 /**
  * 3. Razorpay Official Webhook Handler
  * Verified via HMAC SHA-256 using RAZORPAY_WEBHOOK_SECRET
+ * Strictly processes required payment and refund events idempotently:
+ * - payment.captured
+ * - payment.failed
+ * - refund.created
+ * - refund.processed
+ * - refund.failed
  */
 exports.handleWebhook = async (req, res, next) => {
   try {
     const signature = req.headers['x-razorpay-signature'];
     const rawBody = req.rawBody;
 
-    // Verify webhook signature
+    // Cryptographically verify webhook signature
     const isValid = razorpayService.verifyWebhookSignature(rawBody, signature);
 
     if (!isValid) {
-      console.warn('⚠️ [Razorpay Webhook]: Signature mismatch or invalid webhook call.');
+      console.warn('⚠️ [Razorpay Webhook]: Signature mismatch or unauthenticated webhook request.');
       return res.status(400).json({ success: false, message: 'Invalid webhook signature' });
     }
 
     const event = req.body.event;
     const payload = req.body.payload;
+    const eventId = req.headers['x-razorpay-event-id'] || req.body.event_id || req.body.id;
 
-    console.log(`🔔 [Razorpay Webhook Event]: ${event}`);
+    console.log(`🔔 [Razorpay Webhook Event]: ${event} (Event ID: ${eventId || 'N/A'})`);
 
-    // Handle payment.captured and order.paid events
-    if (event === 'payment.captured' || event === 'order.paid') {
-      const paymentEntity = payload.payment?.entity;
-      const orderEntity = payload.order?.entity;
+    // Only allow configured relevant events
+    const allowedEvents = [
+      'payment.captured',
+      'payment.failed',
+      'refund.created',
+      'refund.processed',
+      'refund.failed'
+    ];
 
-      const rzpOrderId = paymentEntity?.order_id || orderEntity?.id;
-      const rzpPaymentId = paymentEntity?.id;
-      const method = paymentEntity?.method ? paymentEntity.method.toUpperCase() : 'RAZORPAY';
+    if (!allowedEvents.includes(event)) {
+      console.log(`ℹ️ [Razorpay Webhook]: Ignoring unrelated event "${event}"`);
+      return res.status(200).json({ status: 'ignored_unrelated_event' });
+    }
 
-      if (rzpOrderId) {
-        await db.withTransaction(async (conn) => {
+    // IDEMPOTENCY CHECK: Ensure this event has not already been processed
+    if (eventId) {
+      const existingEvents = await db.query(
+        'SELECT event_id FROM webhook_events WHERE event_id = ? LIMIT 1',
+        [eventId]
+      );
+
+      if (existingEvents.length > 0) {
+        console.log(`ℹ️ [Razorpay Webhook]: Event ${eventId} was already processed idempotently.`);
+        return res.status(200).json({ status: 'ok', already_processed: true });
+      }
+    }
+
+    // Process event within database transaction
+    await db.withTransaction(async (conn) => {
+      // Record event ID to guarantee idempotency
+      if (eventId) {
+        await conn.execute(
+          'INSERT INTO webhook_events (event_id, event_type, payload) VALUES (?, ?, ?)',
+          [eventId, event, JSON.stringify({ event, eventId, timestamp: Date.now() })]
+        );
+      }
+
+      if (event === 'payment.captured') {
+        const paymentEntity = payload.payment?.entity;
+        const rzpOrderId = paymentEntity?.order_id;
+        const rzpPaymentId = paymentEntity?.id;
+        const method = paymentEntity?.method ? paymentEntity.method.toUpperCase() : 'RAZORPAY';
+
+        if (rzpOrderId) {
           const [orders] = await conn.execute(
-            `SELECT id, order_number, payment_status FROM orders WHERE razorpay_order_id = ? FOR UPDATE`,
+            `SELECT id, order_number, payment_status, payment_mode, total_amount, advance_amount, remaining_cod_amount 
+             FROM orders WHERE razorpay_order_id = ? FOR UPDATE`,
             [rzpOrderId]
           );
 
           if (orders.length > 0) {
             const order = orders[0];
 
-            // Idempotent: Only update if not already marked as PAID
             if (order.payment_status !== 'PAID') {
               await conn.execute(
                 `UPDATE orders SET payment_status = 'PAID' WHERE id = ?`,
@@ -236,45 +276,95 @@ exports.handleWebhook = async (req, res, next) => {
                      transaction_id = COALESCE(?, transaction_id),
                      payment_method = ?,
                      error_reason = NULL
-                 WHERE order_id = ?`,
-                [rzpPaymentId, rzpPaymentId, method, order.id]
+                 WHERE order_id = ? OR razorpay_order_id = ?`,
+                [rzpPaymentId, rzpPaymentId, method, order.id, rzpOrderId]
               );
 
-              console.log(`✅ [Razorpay Webhook]: Order #${order.order_number} marked as PAID via webhook`);
+              console.log(`✅ [Razorpay Webhook]: Order #${order.order_number} confirmed & marked as PAID via payment.captured`);
             }
           }
-        });
-      }
-    } else if (event === 'payment.failed') {
-      const paymentEntity = payload.payment?.entity;
-      const rzpOrderId = paymentEntity?.order_id;
-      const rzpPaymentId = paymentEntity?.id;
-      const errorDesc = paymentEntity?.error_description || 'Payment failed';
+        }
+      } else if (event === 'payment.failed') {
+        const paymentEntity = payload.payment?.entity;
+        const rzpOrderId = paymentEntity?.order_id;
+        const rzpPaymentId = paymentEntity?.id;
+        const errorDesc = paymentEntity?.error_description || paymentEntity?.error_reason || 'Payment failed';
 
-      if (rzpOrderId) {
-        await db.query(
-          `UPDATE payments
-           SET payment_status = 'FAILED',
-               razorpay_payment_id = ?,
-               error_reason = ?
-           WHERE razorpay_order_id = ? AND payment_status != 'PAID'`,
-          [rzpPaymentId, errorDesc, rzpOrderId]
-        );
-      }
-    }
+        if (rzpOrderId) {
+          await conn.execute(
+            `UPDATE payments
+             SET payment_status = 'FAILED',
+                 razorpay_payment_id = COALESCE(?, razorpay_payment_id),
+                 error_reason = ?
+             WHERE razorpay_order_id = ? AND payment_status != 'PAID'`,
+            [rzpPaymentId, errorDesc, rzpOrderId]
+          );
+        }
+      } else if (event === 'refund.created' || event === 'refund.processed') {
+        const refundEntity = payload.refund?.entity;
+        const paymentEntity = payload.payment?.entity;
+        const rzpPaymentId = refundEntity?.payment_id || paymentEntity?.id;
+        const refundId = refundEntity?.id;
+        const refundAmount = refundEntity?.amount ? refundEntity.amount / 100 : 0.0;
+        const refundStatus = refundEntity?.status || (event === 'refund.processed' ? 'processed' : 'created');
 
-    // Always respond with 200 status as expected by Razorpay Webhook server
+        if (rzpPaymentId) {
+          await conn.execute(
+            `UPDATE payments
+             SET refund_id = ?,
+                 refund_amount = ?,
+                 refund_status = ?,
+                 refunded_at = NOW(),
+                 payment_status = CASE WHEN ? = 'processed' THEN 'REFUNDED' ELSE payment_status END
+             WHERE razorpay_payment_id = ?`,
+            [refundId, refundAmount, refundStatus, refundStatus, rzpPaymentId]
+          );
+
+          console.log(`↩️ [Razorpay Webhook]: Refund ${refundId} recorded for payment ${rzpPaymentId} (${refundStatus})`);
+        }
+      } else if (event === 'refund.failed') {
+        const refundEntity = payload.refund?.entity;
+        const rzpPaymentId = refundEntity?.payment_id;
+        const refundId = refundEntity?.id;
+        const errReason = refundEntity?.error_description || 'Refund processing failed';
+
+        if (rzpPaymentId) {
+          await conn.execute(
+            `UPDATE payments
+             SET refund_id = ?,
+                 refund_status = 'failed',
+                 error_reason = ?
+             WHERE razorpay_payment_id = ?`,
+            [refundId, errReason, rzpPaymentId]
+          );
+        }
+      }
+    });
+
+    // Always respond with 200 HTTP status as required by Razorpay webhook specifications
     return res.status(200).json({ status: 'ok' });
   } catch (error) {
     console.error('❌ [Razorpay Webhook Error]:', error);
-    // Even on internal processing error, return 200 to prevent webhook bombardment if desired, or pass to next
     return res.status(200).json({ status: 'error_logged' });
   }
 };
 
 /**
  * 4. Admin: Get all real payment records
- * Displays Razorpay payment ID, Razorpay order ID, Golden Zone order number, customer, mobile, amount, status, method, timestamps
+ * Displays:
+ * - order number
+ * - customer name
+ * - mobile
+ * - Razorpay order ID
+ * - Razorpay payment ID
+ * - amount
+ * - payment mode
+ * - payment status
+ * - payment method
+ * - date/time
+ * - COD advance / full payment
+ * - remaining COD amount where applicable
+ * - refund information if available
  */
 exports.getPayments = async (req, res, next) => {
   try {
@@ -318,6 +408,9 @@ exports.getPayments = async (req, res, next) => {
               o.primary_mobile,
               o.is_delivered,
               o.is_shipped,
+              o.payment_mode as order_payment_mode,
+              o.advance_amount as order_advance_amount,
+              o.remaining_cod_amount as order_remaining_cod_amount,
               o.created_at as order_created_at
        FROM payments p
        LEFT JOIN orders o ON p.order_id = o.id
@@ -327,12 +420,25 @@ exports.getPayments = async (req, res, next) => {
       [...params, parseInt(limit, 10), offset]
     );
 
-    const formatted = payments.map((pm) => ({
-      ...pm,
-      amount: parseFloat(pm.amount),
-      formatted_date: formatReadableDate(pm.created_at),
-      order_date: formatReadableDate(pm.order_created_at)
-    }));
+    const formatted = payments.map((pm) => {
+      const mode = pm.payment_mode || pm.order_payment_mode || 'ONLINE';
+      const type = pm.payment_type || (mode === 'COD' ? 'COD_ADVANCE' : 'FULL');
+      const remCod = parseFloat(pm.remaining_cod_amount ?? pm.order_remaining_cod_amount ?? 0);
+      const advAmt = parseFloat(pm.order_advance_amount || 0);
+
+      return {
+        ...pm,
+        amount: parseFloat(pm.amount),
+        payment_mode: mode,
+        payment_type: type,
+        remaining_cod_amount: remCod,
+        advance_amount: advAmt,
+        refund_amount: parseFloat(pm.refund_amount || 0),
+        formatted_date: formatReadableDate(pm.created_at),
+        order_date: formatReadableDate(pm.order_created_at),
+        formatted_refund_date: pm.refunded_at ? formatReadableDate(pm.refunded_at) : null
+      };
+    });
 
     return res.status(200).json({
       success: true,

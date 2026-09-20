@@ -133,6 +133,9 @@ CREATE TABLE `orders` (
   `subtotal` DECIMAL(10, 2) NOT NULL,
   `shipping_amount` DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
   `total_amount` DECIMAL(10, 2) NOT NULL,
+  `payment_mode` VARCHAR(20) NOT NULL DEFAULT 'ONLINE',
+  `advance_amount` DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
+  `remaining_cod_amount` DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
   `payment_status` VARCHAR(20) NOT NULL DEFAULT 'PENDING',
   `razorpay_order_id` VARCHAR(100) DEFAULT NULL,
   `is_shipped` TINYINT(1) NOT NULL DEFAULT 0,
@@ -147,6 +150,7 @@ CREATE TABLE `orders` (
   FOREIGN KEY (`user_id`) REFERENCES `customers` (`id`),
   INDEX `idx_order_number` (`order_number`),
   INDEX `idx_order_user` (`user_id`),
+  INDEX `idx_order_payment_mode` (`payment_mode`),
   INDEX `idx_order_razorpay` (`razorpay_order_id`),
   INDEX `idx_order_shipped` (`is_shipped`),
   INDEX `idx_order_delivered` (`is_delivered`),
@@ -178,6 +182,9 @@ CREATE TABLE `payments` (
   `order_id` INT UNSIGNED NOT NULL,
   `user_id` INT UNSIGNED NOT NULL,
   `amount` DECIMAL(10, 2) NOT NULL,
+  `payment_mode` VARCHAR(20) NOT NULL DEFAULT 'ONLINE',
+  `payment_type` VARCHAR(30) NOT NULL DEFAULT 'FULL',
+  `remaining_cod_amount` DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
   `payment_method` VARCHAR(50) NOT NULL DEFAULT 'RAZORPAY',
   `transaction_id` VARCHAR(100) DEFAULT NULL,
   `razorpay_order_id` VARCHAR(100) DEFAULT NULL,
@@ -186,15 +193,48 @@ CREATE TABLE `payments` (
   `payment_status` VARCHAR(30) NOT NULL DEFAULT 'PENDING',
   `gateway` VARCHAR(50) DEFAULT 'RAZORPAY',
   `error_reason` TEXT DEFAULT NULL,
+  `refund_id` VARCHAR(100) DEFAULT NULL,
+  `refund_amount` DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
+  `refund_status` VARCHAR(30) DEFAULT NULL,
+  `refunded_at` TIMESTAMP NULL DEFAULT NULL,
   `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE CASCADE,
   FOREIGN KEY (`user_id`) REFERENCES `customers` (`id`),
   INDEX `idx_payment_order` (`order_id`),
+  INDEX `idx_payment_mode` (`payment_mode`),
   INDEX `idx_payment_status` (`payment_status`),
   INDEX `idx_payment_razorpay_order` (`razorpay_order_id`),
   INDEX `idx_payment_razorpay_payment` (`razorpay_payment_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 8b. OTP Verifications Table
+CREATE TABLE `otp_verifications` (
+  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `mobile_number` VARCHAR(15) NOT NULL,
+  `otp_hash` VARCHAR(255) NOT NULL,
+  `attempts` INT NOT NULL DEFAULT 0,
+  `resend_count` INT NOT NULL DEFAULT 1,
+  `last_sent_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `expires_at` DATETIME NOT NULL,
+  `is_verified` TINYINT(1) NOT NULL DEFAULT 0,
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  INDEX `idx_otp_mobile` (`mobile_number`),
+  INDEX `idx_otp_expires` (`expires_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 8c. Webhook Events Table (Idempotent Webhook Processing)
+CREATE TABLE `webhook_events` (
+  `event_id` VARCHAR(100) NOT NULL,
+  `event_type` VARCHAR(50) NOT NULL,
+  `payload` JSON DEFAULT NULL,
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`event_id`),
+  INDEX `idx_webhook_type` (`event_type`),
+  INDEX `idx_webhook_created` (`created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 9. Reviews Table

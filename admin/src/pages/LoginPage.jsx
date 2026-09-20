@@ -1,25 +1,60 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAdminAuth } from '../context/AdminAuthContext';
 import { adminAuthService } from '../services/api';
-import { Lock, Smartphone, KeyRound, ShieldAlert } from 'lucide-react';
+import { Lock, Smartphone, KeyRound, ShieldAlert, CheckCircle2, Send } from 'lucide-react';
 
 export default function LoginPage() {
   const [mobile, setMobile] = useState('7976580806');
-  const [password, setPassword] = useState('Subhash29');
-  const [otp, setOtp] = useState('987654');
+  const [password, setPassword] = useState('');
+  const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
+  const [otpLoading, setOtpLoading] = useState(false);
+  const [countdown, setCountdown] = useState(0);
   const [error, setError] = useState('');
+  const [infoMessage, setInfoMessage] = useState('');
 
   const { login } = useAdminAuth();
   const navigate = useNavigate();
 
+  useEffect(() => {
+    let timer;
+    if (countdown > 0) {
+      timer = setInterval(() => {
+        setCountdown((c) => c - 1);
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [countdown]);
+
+  const handleSendOtp = async () => {
+    setError('');
+    setInfoMessage('');
+    const cleanMobile = mobile.replace(/\D/g, '').slice(-10);
+    if (cleanMobile.length !== 10) {
+      setError('Please enter a valid 10-digit admin mobile number.');
+      return;
+    }
+
+    setOtpLoading(true);
+    try {
+      const res = await adminAuthService.sendOtp(cleanMobile);
+      setInfoMessage(res.data?.message || 'OTP sent successfully to admin phone via SMS.');
+      setCountdown(60);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to send OTP. Please try again.');
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
   const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
+    setInfoMessage('');
 
     if (!mobile || !password || !otp) {
-      setError('Please fill in Mobile, Password, and OTP.');
+      setError('Please fill in Mobile, Password, and the 6-digit OTP.');
       return;
     }
 
@@ -51,7 +86,7 @@ export default function LoginPage() {
     }}>
       <div style={{
         width: '100%',
-        maxWidth: '400px',
+        maxWidth: '420px',
         backgroundColor: '#FFFFFF',
         borderRadius: '16px',
         boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.4)',
@@ -66,11 +101,11 @@ export default function LoginPage() {
           borderBottom: '1px solid #E2E8F0'
         }}>
           <img
-            src="https://www.photo-pick.com/online/api/v1/albums/601cea76-66de-49d8-bf5f-9b3544d4f902.jpg"
+            src="https://res.cloudinary.com/dgxaol7mz/image/upload/v1789872272/ChatGPT_Image_Sep_19_2026_11_08_00_AM_nrqbem.png"
             alt="Golden Zone Logo"
             style={{ height: '48px', width: '48px', margin: '0 auto 8px', borderRadius: '8px', objectFit: 'contain' }}
           />
-          <h1 style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.25rem', color: '#520612', fontWeight: 700 }}>
+          <h1 style={{ fontFamily: '"Plus Jakarta Sans", system-ui, -apple-system, sans-serif', fontSize: '1.25rem', color: '#520612', fontWeight: 700 }}>
             Golden Zone
           </h1>
           <p style={{ fontSize: '0.76rem', color: '#64748B', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
@@ -98,21 +133,23 @@ export default function LoginPage() {
             </div>
           )}
 
-          {/* Quick Demo Credentials Info */}
-          <div style={{
-            backgroundColor: '#F5E8C7',
-            border: '1px solid #C5A059',
-            color: '#7D5C1E',
-            fontSize: '0.74rem',
-            padding: '8px 12px',
-            borderRadius: '8px',
-            marginBottom: '16px',
-            lineHeight: 1.4
-          }}>
-            <strong>🔑 Demo Admin Credentials:</strong><br />
-            Mobile: <strong>7976580806</strong> | Password: <strong>Subhash29</strong><br />
-            OTP: <strong>987654</strong>
-          </div>
+          {infoMessage && (
+            <div style={{
+              backgroundColor: '#ECFDF5',
+              border: '1px solid #A7F3D0',
+              color: '#065F46',
+              fontSize: '0.80rem',
+              padding: '10px 12px',
+              borderRadius: '8px',
+              marginBottom: '16px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}>
+              <CheckCircle2 size={16} />
+              <span>{infoMessage}</span>
+            </div>
+          )}
 
           <div style={{ marginBottom: '14px' }}>
             <label className="form-label">Admin Mobile Number</label>
@@ -123,7 +160,7 @@ export default function LoginPage() {
                 required
                 value={mobile}
                 onChange={(e) => setMobile(e.target.value)}
-                placeholder="7976580806"
+                placeholder="Enter 10-digit mobile"
                 className="form-input"
                 style={{ border: 'none', background: 'transparent', padding: '10px 0' }}
               />
@@ -139,7 +176,7 @@ export default function LoginPage() {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter password"
+                placeholder="Enter admin password"
                 className="form-input"
                 style={{ border: 'none', background: 'transparent', padding: '10px 0' }}
               />
@@ -147,7 +184,30 @@ export default function LoginPage() {
           </div>
 
           <div style={{ marginBottom: '20px' }}>
-            <label className="form-label">Security OTP</label>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+              <label className="form-label" style={{ margin: 0 }}>Security OTP</label>
+              {countdown > 0 ? (
+                <span style={{ fontSize: '0.74rem', color: '#64748B' }}>Resend in {countdown}s</span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleSendOtp}
+                  disabled={otpLoading || !mobile}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#520612',
+                    fontSize: '0.74rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    textDecoration: 'underline'
+                  }}
+                >
+                  {otpLoading ? 'Sending...' : 'Send OTP via SMS'}
+                </button>
+              )}
+            </div>
+
             <div style={{ display: 'flex', alignItems: 'center', border: '1px solid #CBD5E1', borderRadius: '6px', padding: '0 10px', backgroundColor: '#F8FAFC' }}>
               <KeyRound size={16} color="#64748B" style={{ marginRight: '8px' }} />
               <input
@@ -155,8 +215,8 @@ export default function LoginPage() {
                 required
                 maxLength={6}
                 value={otp}
-                onChange={(e) => setOtp(e.target.value)}
-                placeholder="987654"
+                onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
+                placeholder="Enter 6-digit OTP"
                 className="form-input"
                 style={{ border: 'none', background: 'transparent', padding: '10px 0', letterSpacing: '0.15em', fontWeight: 700 }}
               />

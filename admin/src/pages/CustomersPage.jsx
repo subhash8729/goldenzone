@@ -50,7 +50,7 @@ export default function CustomersPage() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
         <div>
-          <h1 style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.45rem', color: '#520612', fontWeight: 700 }}>
+          <h1 style={{ fontFamily: '"Plus Jakarta Sans", system-ui, -apple-system, sans-serif', fontSize: '1.45rem', color: '#520612', fontWeight: 700 }}>
             Customer Directory
           </h1>
           <p style={{ fontSize: '0.78rem', color: '#64748B' }}>
@@ -151,7 +151,7 @@ export default function CustomersPage() {
           <div style={{ backgroundColor: '#FFFFFF', borderRadius: '16px', width: '100%', maxWidth: '560px', maxHeight: '85vh', overflowY: 'auto', padding: '20px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px solid #E2E8F0', paddingBottom: '10px' }}>
               <div>
-                <h3 style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.2rem', color: '#520612', fontWeight: 700 }}>
+                <h3 style={{ fontFamily: '"Plus Jakarta Sans", system-ui, -apple-system, sans-serif', fontSize: '1.2rem', color: '#520612', fontWeight: 700 }}>
                   {selectedCustomer.full_name}
                 </h3>
                 <span style={{ fontSize: '0.76rem', color: '#64748B' }}>+91 {selectedCustomer.mobile_number}</span>
