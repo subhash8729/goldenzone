@@ -1,11 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const reviewController = require('../controllers/reviewController');
-const { verifyAdminAuth } = require('../middleware/auth');
+const { verifyAdminAuth, verifyCustomerAuth } = require('../middleware/auth');
+const { reviewLimiter } = require('../middleware/rateLimiter');
 
 // Public endpoints
 router.get('/product/:productId', reviewController.getProductReviews);
-router.post('/', reviewController.submitReview);
+router.post('/', verifyCustomerAuth, reviewLimiter, reviewController.submitReview);
 
 // Admin endpoints
 router.get('/admin/all', verifyAdminAuth, reviewController.getAdminReviews);

@@ -10,6 +10,7 @@ import Footer from './components/Footer';
 import CartDrawer from './components/CartDrawer';
 import AuthModal from './components/AuthModal';
 import SitePreloader from './components/SitePreloader';
+import ErrorBoundary from './components/ErrorBoundary';
 import { Toast } from './components/LoadingSkeleton';
 
 import HomePage from './pages/HomePage';
@@ -34,18 +35,20 @@ function AppContent({ settings, categories }) {
       <Toast toast={toast} onClose={closeToast} onOpenCart={openCart} />
 
       <main style={{ flex: 1 }}>
-        <Routes>
-          <Route path="/" element={<HomePage settings={settings} categories={categories} />} />
-          <Route path="/shop" element={<ShopPage categories={categories} />} />
-          <Route path="/product/:identifier" element={<ProductDetailPage settings={settings} />} />
-          <Route path="/checkout" element={<CheckoutPage settings={settings} />} />
-          <Route path="/orders" element={<OrderTrackingPage />} />
-          <Route path="/orders/:orderNumber" element={<OrderTrackingPage />} />
-          <Route path="/profile" element={<ProfilePage />} />
-          <Route path="/about" element={<AboutPage settings={settings} />} />
-          <Route path="/contact" element={<ContactPage settings={settings} />} />
-          <Route path="*" element={<NotFoundPage />} />
-        </Routes>
+        <ErrorBoundary>
+          <Routes>
+            <Route path="/" element={<HomePage settings={settings} categories={categories} />} />
+            <Route path="/shop" element={<ShopPage categories={categories} />} />
+            <Route path="/product/:identifier" element={<ProductDetailPage settings={settings} />} />
+            <Route path="/checkout" element={<CheckoutPage settings={settings} />} />
+            <Route path="/orders" element={<OrderTrackingPage />} />
+            <Route path="/orders/:orderNumber" element={<OrderTrackingPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/about" element={<AboutPage settings={settings} />} />
+            <Route path="/contact" element={<ContactPage settings={settings} />} />
+            <Route path="*" element={<NotFoundPage />} />
+          </Routes>
+        </ErrorBoundary>
       </main>
 
       <Footer settings={settings} />
@@ -84,7 +87,9 @@ export default function App() {
             <SitePreloader onFinish={() => setPreloaderActive(false)} />
           )}
           <div className={preloaderActive ? '' : 'gz-page-enter'} style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-            <AppContent settings={settings} categories={categories} />
+            <ErrorBoundary>
+              <AppContent settings={settings} categories={categories} />
+            </ErrorBoundary>
           </div>
         </CartProvider>
       </AuthProvider>

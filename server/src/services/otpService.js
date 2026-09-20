@@ -76,33 +76,42 @@ class OtpService {
     const appDomain = config.appDomain || 'goldenzone.in';
     const appName = config.appName || 'Golden Zone';
 
-    let smsDispatched = false;
-    let gatewayResponse = null;
+    if (!renflairKey) {
+      const err = new Error('SMS sign-in is temporarily unavailable. Please contact support.');
+      err.status = 503;
+      throw err;
+    }
 
-    if (renflairKey) {
-      try {
+    try {
         const requestUrl = new URL(renflairUrl);
         requestUrl.searchParams.append('API', renflairKey);
         requestUrl.searchParams.append('PHONE', cleanMobile);
         requestUrl.searchParams.append('OTP', otp);
 
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
+
         const response = await fetch(requestUrl.toString(), {
           method: 'GET',
+          signal: controller.signal,
           headers: {
             'User-Agent': `${appName}-Backend/1.0 (${appDomain})`
           }
         });
+        clearTimeout(timeoutId);
 
-        const textResp = await response.text();
-        gatewayResponse = textResp;
-        smsDispatched = response.ok;
-        console.log(`📱 [Renflair SMS]: Dispatched to +91${cleanMobile}. Gateway status: ${response.status}`);
-      } catch (smsErr) {
-        console.error('❌ [Renflair SMS Gateway Error]:', smsErr.message);
-        // Do not throw away generated OTP if network glitch occurred; let server log it safely
+      await response.text();
+      if (!response.ok) {
+        const err = new Error('SMS sign-in is temporarily unavailable. Please try again shortly.');
+        err.status = 503;
+        throw err;
       }
-    } else {
-      console.warn(`⚠️ [Renflair SMS]: RENFLAIR_API_KEY is not configured in .env.`);
+    } catch (smsErr) {
+      if (smsErr.status) throw smsErr;
+      console.error('❌ [Renflair SMS Gateway Error]:', smsErr.name === 'AbortError' ? 'Request timed out after 8s' : smsErr.message);
+      const err = new Error('SMS sign-in is temporarily unavailable. Please try again shortly.');
+      err.status = 503;
+      throw err;
     }
 
     // Invalidate prior unverified OTPs for this number

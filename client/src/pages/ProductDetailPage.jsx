@@ -14,6 +14,7 @@ import {
   Truck,
   ShieldCheck,
   ChevronDown,
+  ChevronRight,
   ArrowLeft,
   Sparkles,
   Check
@@ -295,7 +296,7 @@ export default function ProductDetailPage({ settings = {} }) {
             {quantity}
           </span>
           <button
-            onClick={() => setQuantity((q) => q + 1)}
+            onClick={() => setQuantity((q) => Math.min(20, q + 1))}
             disabled={isOutOfStock}
             style={{
               border: 'none',

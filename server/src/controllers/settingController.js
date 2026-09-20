@@ -64,6 +64,13 @@ exports.submitEnquiry = async (req, res, next) => {
     if (!mobile_number || !mobile_number.trim()) {
       return res.status(400).json({ success: false, message: 'Contact mobile number is required.' });
     }
+    const cleanMobile = mobile_number.replace(/\D/g, '').slice(-10);
+    if (cleanMobile.length !== 10) {
+      return res.status(400).json({ success: false, message: 'Please provide a valid 10-digit contact mobile number.' });
+    }
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      return res.status(400).json({ success: false, message: 'Please provide a valid email address.' });
+    }
     if (!message || !message.trim()) {
       return res.status(400).json({ success: false, message: 'Enquiry message is required.' });
     }
@@ -73,7 +80,7 @@ exports.submitEnquiry = async (req, res, next) => {
        VALUES (?, ?, ?, ?, ?)`,
       [
         name.trim(),
-        mobile_number.trim(),
+        cleanMobile,
         email ? email.trim() : null,
         subject ? subject.trim() : 'General Customer Enquiry',
         message.trim()
@@ -101,4 +108,3 @@ exports.getEnquiries = async (req, res, next) => {
     next(error);
   }
 };
-

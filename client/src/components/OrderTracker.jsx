@@ -209,7 +209,12 @@ export default function OrderTracker({ order }) {
           <strong>₹{Number(order.total_amount || 0).toLocaleString('en-IN')}</strong>
         </div>
 
-        {order.payment_mode === 'COD' ? (
+        {order.payment_status !== 'PAID' ? (
+          <div style={{ display: 'flex', justifyContent: 'space-between', color: '#DC2626', fontWeight: 600, padding: '4px 0' }}>
+            <span>Payment Status:</span>
+            <span>Awaiting Verification / Incomplete</span>
+          </div>
+        ) : order.payment_mode === 'COD' ? (
           <>
             <div style={{ display: 'flex', justifyContent: 'space-between', color: '#166534', marginBottom: '4px' }}>
               <span>Advance Paid (Razorpay):</span>

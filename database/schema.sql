@@ -158,6 +158,31 @@ CREATE TABLE `orders` (
   INDEX `idx_order_created` (`created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- 6b. Order Drafts / Checkout Sessions (No payment = No confirmed order)
+CREATE TABLE IF NOT EXISTS `order_drafts` (
+  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `razorpay_order_id` VARCHAR(100) NOT NULL UNIQUE,
+  `user_id` INT UNSIGNED NOT NULL,
+  `order_number` VARCHAR(50) NOT NULL,
+  `delivery_details` JSON NOT NULL,
+  `items_data` JSON NOT NULL,
+  `subtotal` DECIMAL(10, 2) NOT NULL,
+  `shipping_amount` DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
+  `total_amount` DECIMAL(10, 2) NOT NULL,
+  `payment_mode` VARCHAR(20) NOT NULL DEFAULT 'ONLINE',
+  `advance_amount` DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
+  `remaining_cod_amount` DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
+  `payable_amount` DECIMAL(10, 2) NOT NULL,
+  `status` VARCHAR(30) NOT NULL DEFAULT 'INITIATED',
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  FOREIGN KEY (`user_id`) REFERENCES `customers` (`id`),
+  INDEX `idx_draft_rzp` (`razorpay_order_id`),
+  INDEX `idx_draft_user` (`user_id`),
+  INDEX `idx_draft_status` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- 7. Order Items Table
 CREATE TABLE `order_items` (
   `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,

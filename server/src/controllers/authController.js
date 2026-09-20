@@ -180,7 +180,7 @@ exports.getCustomerProfile = async (req, res, next) => {
 // ADMIN AUTHENTICATION
 // ----------------------------------------------------
 
-// 1. Send OTP to registered admin mobile
+// 1. Send OTP to registered active admin mobile
 exports.adminSendOtp = async (req, res, next) => {
   try {
     const { mobile_number } = req.body;
@@ -189,15 +189,20 @@ exports.adminSendOtp = async (req, res, next) => {
     }
 
     const cleanMobile = mobile_number.replace(/\D/g, '').slice(-10);
+    if (cleanMobile.length !== 10) {
+      return res.status(400).json({ success: false, message: 'Please provide a valid 10-digit mobile number' });
+    }
+
+    // Check if mobile belongs to an administrator
     const admins = await db.query('SELECT id, mobile_number FROM admins WHERE mobile_number = ?', [cleanMobile]);
     if (admins.length === 0) {
-      return res.status(403).json({ success: false, message: 'This mobile number is not registered for administrator access.' });
+      return res.status(401).json({ success: false, message: 'Unauthorized: Invalid administrator credentials.' });
     }
 
     const result = await otpService.sendOtp(cleanMobile);
     return res.status(200).json({
       success: true,
-      message: result.message || `Admin OTP sent to registered mobile.`
+      message: result.message || 'Security OTP sent to registered admin mobile.'
     });
   } catch (error) {
     if (error.status) {
@@ -220,24 +225,24 @@ exports.adminLogin = async (req, res, next) => {
 
     const cleanMobile = mobile_number.replace(/\D/g, '').slice(-10);
 
-    // Verify OTP
-    const verifyResult = await otpService.verifyOtp(cleanMobile, otp);
-    if (!verifyResult.success) {
-      return res.status(401).json({ success: false, message: 'Invalid OTP code.' });
-    }
-
-    // Check admin existence in DB
+    // 1. Check admin existence
     const admins = await db.query('SELECT * FROM admins WHERE mobile_number = ?', [cleanMobile]);
     if (admins.length === 0) {
-      return res.status(401).json({ success: false, message: 'Unauthorized: Mobile number not registered as admin.' });
+      return res.status(401).json({ success: false, message: 'Unauthorized: Invalid administrator credentials.' });
     }
 
     const admin = admins[0];
 
-    // Verify Password Hash
+    // 2. Verify OTP cryptographically
+    const verifyResult = await otpService.verifyOtp(cleanMobile, otp);
+    if (!verifyResult.success) {
+      return res.status(401).json({ success: false, message: verifyResult.message || 'Invalid or expired OTP code.' });
+    }
+
+    // 3. Verify Password Hash
     const isPasswordValid = bcrypt.compareSync(password, admin.password_hash);
     if (!isPasswordValid) {
-      return res.status(401).json({ success: false, message: 'Invalid admin credentials or password.' });
+      return res.status(401).json({ success: false, message: 'Unauthorized: Invalid administrator credentials.' });
     }
 
     // Generate Admin JWT Token

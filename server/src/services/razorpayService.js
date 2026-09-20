@@ -38,7 +38,16 @@ async function createRazorpayOrder({ amount, receipt, notes = {} }) {
     notes
   };
 
-  return await rzp.orders.create(options);
+  try {
+    return await rzp.orders.create(options);
+  } catch (error) {
+    // The SDK can throw malformed network errors (without response/status). Do not expose
+    // those internals or leave callers with an unusable checkout state.
+    console.error('[Razorpay Service]: Unable to create order:', error?.message || 'unknown gateway error');
+    const gatewayError = new Error('Payment gateway is temporarily unavailable. Please try again shortly.');
+    gatewayError.statusCode = 503;
+    throw gatewayError;
+  }
 }
 
 /**

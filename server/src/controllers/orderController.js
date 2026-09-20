@@ -61,17 +61,27 @@ exports.createOrder = async (req, res, next) => {
     if (!full_name || !full_name.trim()) {
       return res.status(400).json({ success: false, message: 'Full name is required' });
     }
-    if (!primary_mobile || !primary_mobile.trim()) {
+    const cleanPrimaryMobile = String(primary_mobile || '').replace(/\D/g, '').slice(-10);
+    const cleanSecondaryMobile = secondary_mobile ? String(secondary_mobile).replace(/\D/g, '').slice(-10) : null;
+    const cleanPincode = String(pincode || '').trim();
+
+    if (cleanPrimaryMobile.length !== 10) {
       return res.status(400).json({ success: false, message: 'Primary mobile number is required' });
     }
     if (!address || !address.trim()) {
       return res.status(400).json({ success: false, message: 'Delivery address is required' });
     }
-    if (!state || !district || !pincode) {
+    if (!state || !district || !cleanPincode) {
       return res.status(400).json({ success: false, message: 'State, District, and PIN code are required' });
+    }
+    if (!/^\d{6}$/.test(cleanPincode)) {
+      return res.status(400).json({ success: false, message: 'Please provide a valid 6-digit PIN code.' });
     }
     if (!items || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ success: false, message: 'Your cart is empty' });
+    }
+    if (items.length > 50) {
+      return res.status(400).json({ success: false, message: 'Your cart contains too many different items.' });
     }
 
     // Prepare Google Maps URL if coordinates provided
@@ -79,9 +89,12 @@ exports.createOrder = async (req, res, next) => {
     let validLat = null;
     let validLng = null;
 
-    if (latitude && longitude && !isNaN(parseFloat(latitude)) && !isNaN(parseFloat(longitude))) {
+    if (latitude !== null && latitude !== undefined && longitude !== null && longitude !== undefined && !isNaN(parseFloat(latitude)) && !isNaN(parseFloat(longitude))) {
       validLat = parseFloat(latitude);
       validLng = parseFloat(longitude);
+      if (validLat < -90 || validLat > 90 || validLng < -180 || validLng > 180) {
+        return res.status(400).json({ success: false, message: 'Location coordinates are invalid.' });
+      }
       mapsUrl = `https://www.google.com/maps?q=${validLat},${validLng}`;
     }
 
@@ -99,7 +112,7 @@ exports.createOrder = async (req, res, next) => {
         const prodId = parseInt(item.product_id || item.id, 10);
         const qty = parseInt(item.quantity, 10);
 
-        if (isNaN(qty) || qty <= 0) {
+        if (isNaN(qty) || qty <= 0 || qty > 20) {
           throw new Error('Invalid product quantity.');
         }
 
@@ -167,7 +180,7 @@ exports.createOrder = async (req, res, next) => {
         notes: {
           orderNumber,
           customerId,
-          customerMobile: primary_mobile.trim(),
+        customerMobile: cleanPrimaryMobile,
           payment_mode: paymentMode,
           total_amount: String(totalAmount),
           advance_amount: String(advanceAmount),
@@ -175,106 +188,45 @@ exports.createOrder = async (req, res, next) => {
         }
       });
 
-      // Insert Order record with PENDING payment status, payment_mode, and amounts
-      const [orderInsert] = await conn.execute(
-        `INSERT INTO orders (
-          order_number, user_id, full_name, primary_mobile, secondary_mobile,
-          address, state, district, city, village, pincode,
-          latitude, longitude, maps_url,
-          subtotal, shipping_amount, total_amount, payment_mode, advance_amount, remaining_cod_amount,
-          payment_status, razorpay_order_id, is_shipped, is_delivered
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', ?, 0, 0)`,
+      // Store checkout draft in order_drafts table (No confirmed order created until payment verification!)
+      const deliveryDetails = {
+        full_name: full_name.trim(),
+        primary_mobile: cleanPrimaryMobile,
+        secondary_mobile: cleanSecondaryMobile && cleanSecondaryMobile.length === 10 ? cleanSecondaryMobile : null,
+        address: address.trim(),
+        state: state.trim(),
+        district: district.trim(),
+        city: city ? city.trim() : null,
+        village: village ? village.trim() : null,
+        pincode: cleanPincode,
+        validLat,
+        validLng,
+        mapsUrl
+      };
+
+      await conn.execute(
+        `INSERT INTO order_drafts (
+          razorpay_order_id, user_id, order_number, delivery_details, items_data,
+          subtotal, shipping_amount, total_amount, payment_mode, advance_amount,
+          remaining_cod_amount, payable_amount, status
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'INITIATED')`,
         [
-          orderNumber,
+          rzpOrder.id,
           customerId,
-          full_name.trim(),
-          primary_mobile.trim(),
-          secondary_mobile ? secondary_mobile.trim() : null,
-          address.trim(),
-          state.trim(),
-          district.trim(),
-          city ? city.trim() : null,
-          village ? village.trim() : null,
-          pincode.trim(),
-          validLat,
-          validLng,
-          mapsUrl,
+          orderNumber,
+          JSON.stringify(deliveryDetails),
+          JSON.stringify(verifiedItems),
           subtotal,
           shippingAmount,
           totalAmount,
           paymentMode,
           advanceAmount,
           remainingCodAmount,
-          rzpOrder.id
-        ]
-      );
-
-      const orderId = orderInsert.insertId;
-
-      // Insert Order Items with fixed price snapshot
-      for (const it of verifiedItems) {
-        await conn.execute(
-          `INSERT INTO order_items (
-            order_id, product_id, product_name, product_sku, product_image,
-            unit_price, quantity, subtotal_price
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-          [
-            orderId,
-            it.productId,
-            it.name,
-            it.sku,
-            it.image,
-            it.unitPrice,
-            it.quantity,
-            it.subtotalPrice
-          ]
-        );
-      }
-
-      // Insert Initial Payment record with mode and type
-      await conn.execute(
-        `INSERT INTO payments (
-          order_id, user_id, amount, payment_mode, payment_type, remaining_cod_amount,
-          payment_method, razorpay_order_id, payment_status, gateway
-        ) VALUES (?, ?, ?, ?, ?, ?, 'RAZORPAY', ?, 'PENDING', 'RAZORPAY')`,
-        [
-          orderId,
-          customerId,
-          payableAmount,
-          paymentMode,
-          paymentMode === 'COD' ? 'COD_ADVANCE' : 'FULL',
-          remainingCodAmount,
-          rzpOrder.id
-        ]
-      );
-
-      // Update customer table with latest delivery details for future pre-filling
-      await conn.execute(
-        `UPDATE customers
-         SET full_name = ?,
-             secondary_mobile = ?,
-             address = ?,
-             state = ?,
-             district = ?,
-             city = ?,
-             village = ?,
-             pincode = ?
-         WHERE id = ?`,
-        [
-          full_name.trim(),
-          secondary_mobile ? secondary_mobile.trim() : null,
-          address.trim(),
-          state.trim(),
-          district.trim(),
-          city ? city.trim() : null,
-          village ? village.trim() : null,
-          pincode.trim(),
-          customerId
+          payableAmount
         ]
       );
 
       return {
-        orderId,
         orderNumber,
         totalAmount,
         advanceAmount,
@@ -342,7 +294,7 @@ exports.getCustomerOrders = async (req, res, next) => {
       `SELECT o.*,
               (SELECT COUNT(*) FROM order_items oi WHERE oi.order_id = o.id) as item_count
        FROM orders o
-       WHERE o.user_id = ? AND o.deleted_at IS NULL
+       WHERE o.user_id = ? AND o.deleted_at IS NULL AND o.payment_status = 'PAID'
        ORDER BY o.created_at DESC`,
       [customerId]
     );
@@ -384,6 +336,11 @@ exports.getCustomerOrders = async (req, res, next) => {
 exports.getOrderByNumber = async (req, res, next) => {
   try {
     const { orderNumber } = req.params;
+    const customerId = req.user?.id;
+
+    if (!customerId) {
+      return res.status(401).json({ success: false, message: 'Please log in to view order tracking.' });
+    }
 
     const orders = await db.query(
       `SELECT * FROM orders WHERE order_number = ? AND deleted_at IS NULL LIMIT 1`,
@@ -396,8 +353,8 @@ exports.getOrderByNumber = async (req, res, next) => {
 
     const order = orders[0];
 
-    // Verify ownership if requested by logged-in customer (unless admin)
-    if (req.user && !req.admin && order.user_id !== req.user.id) {
+    // Tracking data includes address and payment information; it is only visible to the owner.
+    if (order.user_id !== customerId) {
       return res.status(403).json({ success: false, message: 'Access denied to this order.' });
     }
 
@@ -506,7 +463,9 @@ exports.getAdminOrders = async (req, res, next) => {
       limit = 30
     } = req.query;
 
-    const offset = (Math.max(1, parseInt(page, 10)) - 1) * parseInt(limit, 10);
+    const pageNumber = Math.max(1, parseInt(page, 10) || 1);
+    const pageSize = Math.min(100, Math.max(1, parseInt(limit, 10) || 30));
+    const offset = (pageNumber - 1) * pageSize;
     const params = [];
     const countParams = [];
 
@@ -562,7 +521,7 @@ exports.getAdminOrders = async (req, res, next) => {
        ${whereSql}
        ORDER BY o.id DESC
        LIMIT ? OFFSET ?`,
-      [...params, parseInt(limit, 10), offset]
+      [...params, pageSize, offset]
     );
 
     const formatted = orders.map((o) => ({
@@ -585,10 +544,10 @@ exports.getAdminOrders = async (req, res, next) => {
       success: true,
       data: formatted,
       pagination: {
-        page: parseInt(page, 10),
-        limit: parseInt(limit, 10),
+        page: pageNumber,
+        limit: pageSize,
         totalItems,
-        totalPages: Math.ceil(totalItems / parseInt(limit, 10))
+        totalPages: Math.ceil(totalItems / pageSize)
       }
     });
   } catch (error) {

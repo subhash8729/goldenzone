@@ -21,12 +21,12 @@ export default function OrdersPage() {
 
   const currentStatus = searchParams.get('status') || 'all';
   const currentDateFilter = searchParams.get('date') || 'all';
-  const initialSearch = searchParams.get('search') || '';
+  const currentSearch = searchParams.get('search') || '';
 
   const [orders, setOrders] = useState([]);
   const [pagination, setPagination] = useState({ page: 1, totalPages: 1, totalItems: 0 });
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState(initialSearch);
+  const [searchQuery, setSearchQuery] = useState(currentSearch);
   const [selectedOrder, setSelectedOrder] = useState(null); // For View Items Modal
   const [remarksState, setRemarksState] = useState({});
   const [remarkSuccess, setRemarkSuccess] = useState({});
@@ -37,7 +37,7 @@ export default function OrdersPage() {
       const res = await adminOrderService.getOrders({
         status: currentStatus,
         date_filter: currentDateFilter !== 'all' ? currentDateFilter : undefined,
-        search: searchQuery.trim() || undefined,
+        search: currentSearch || undefined,
         page: searchParams.get('page') || 1,
         limit: 25
       });
@@ -64,7 +64,11 @@ export default function OrdersPage() {
 
   useEffect(() => {
     fetchOrders();
-  }, [currentStatus, currentDateFilter, searchParams.get('page')]);
+  }, [currentStatus, currentDateFilter, currentSearch, searchParams.get('page')]);
+
+  useEffect(() => {
+    setSearchQuery(currentSearch);
+  }, [currentSearch]);
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
@@ -76,7 +80,6 @@ export default function OrdersPage() {
     }
     newParams.set('page', '1');
     setSearchParams(newParams);
-    fetchOrders();
   };
 
   // Status Tab Switch

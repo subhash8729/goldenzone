@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, Maximize2, X } from 'lucide-react';
 
 export default function ProductGallery({ images = [], productName = 'Jewellery' }) {
@@ -9,6 +9,11 @@ export default function ProductGallery({ images = [], productName = 'Jewellery' 
   const displayImages = images.length > 0
     ? images
     : ['https://pashupati.co/cdn/shop/files/B35A6888-45CE-4752-A4A2-7951A478EA61.jpg?v=1775994142&width=600'];
+
+  useEffect(() => {
+    setActiveIndex(0);
+    setIsZoomOpen(false);
+  }, [images]);
 
   const handlePrev = (e) => {
     e?.stopPropagation();

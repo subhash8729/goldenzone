@@ -48,7 +48,9 @@ exports.getProducts = async (req, res, next) => {
       limit = 20
     } = req.query;
 
-    const offset = (Math.max(1, parseInt(page, 10)) - 1) * parseInt(limit, 10);
+    const pageNumber = Math.max(1, parseInt(page, 10) || 1);
+    const pageSize = Math.min(100, Math.max(1, parseInt(limit, 10) || 20));
+    const offset = (pageNumber - 1) * pageSize;
     const params = [];
     const countParams = [];
 
@@ -126,7 +128,7 @@ exports.getProducts = async (req, res, next) => {
        ${whereSql}
        ${orderSql}
        LIMIT ? OFFSET ?`,
-      [...params, parseInt(limit, 10), offset]
+      [...params, pageSize, offset]
     );
 
     const formattedProducts = products.map((prod) => ({
@@ -144,10 +146,10 @@ exports.getProducts = async (req, res, next) => {
       success: true,
       data: formattedProducts,
       pagination: {
-        page: parseInt(page, 10),
-        limit: parseInt(limit, 10),
+        page: pageNumber,
+        limit: pageSize,
         totalItems,
-        totalPages: Math.ceil(totalItems / parseInt(limit, 10))
+        totalPages: Math.ceil(totalItems / pageSize)
       }
     });
   } catch (error) {
@@ -164,7 +166,7 @@ exports.getProductDetail = async (req, res, next) => {
       `SELECT p.*, c.name as category_name, c.slug as category_slug
        FROM products p
        LEFT JOIN categories c ON p.category_id = c.id
-       WHERE (p.slug = ? OR p.id = ?) AND p.deleted_at IS NULL
+       WHERE (p.slug = ? OR p.id = ?) AND p.deleted_at IS NULL AND p.is_active = 1
        LIMIT 1`,
       [identifier, identifier]
     );
@@ -249,7 +251,9 @@ exports.getAdminProducts = async (req, res, next) => {
   try {
     const { category_id, is_out_of_stock, is_recommended, is_bestseller, is_active, search, page = 1, limit = 50 } = req.query;
 
-    const offset = (Math.max(1, parseInt(page, 10)) - 1) * parseInt(limit, 10);
+    const pageNumber = Math.max(1, parseInt(page, 10) || 1);
+    const pageSize = Math.min(100, Math.max(1, parseInt(limit, 10) || 50));
+    const offset = (pageNumber - 1) * pageSize;
     const params = [];
     const countParams = [];
 
@@ -313,7 +317,7 @@ exports.getAdminProducts = async (req, res, next) => {
        ${whereSql}
        ORDER BY p.id DESC
        LIMIT ? OFFSET ?`,
-      [...params, parseInt(limit, 10), offset]
+      [...params, pageSize, offset]
     );
 
     const formatted = products.map((p) => ({
@@ -332,10 +336,10 @@ exports.getAdminProducts = async (req, res, next) => {
       success: true,
       data: formatted,
       pagination: {
-        page: parseInt(page, 10),
-        limit: parseInt(limit, 10),
+        page: pageNumber,
+        limit: pageSize,
         totalItems,
-        totalPages: Math.ceil(totalItems / parseInt(limit, 10))
+        totalPages: Math.ceil(totalItems / pageSize)
       }
     });
   } catch (error) {
@@ -404,6 +408,11 @@ exports.createProduct = async (req, res, next) => {
     const baseSlug = slugify(name);
     const uniqueSlug = `${baseSlug}-${Date.now().toString().slice(-4)}`;
     const sku = req.body.sku && req.body.sku.trim() ? req.body.sku.trim() : generateSku(categoryName);
+
+    const skuConflict = await db.query('SELECT id FROM products WHERE sku = ?', [sku]);
+    if (skuConflict.length > 0) {
+      return res.status(400).json({ success: false, message: 'This SKU is already in use.' });
+    }
 
     // Run transaction
     const result = await db.withTransaction(async (conn) => {
@@ -480,6 +489,15 @@ exports.updateProduct = async (req, res, next) => {
 
     const regPrice = parseFloat(regular_price);
     const discPrice = parseFloat(discounted_price);
+
+    if (!name || !name.trim()) {
+      return res.status(400).json({ success: false, message: 'Product name is required' });
+    }
+
+    const categories = await db.query('SELECT id FROM categories WHERE id = ?', [category_id]);
+    if (categories.length === 0) {
+      return res.status(400).json({ success: false, message: 'Invalid category selected' });
+    }
 
     if (isNaN(regPrice) || regPrice <= 0 || isNaN(discPrice) || discPrice <= 0) {
       return res.status(400).json({ success: false, message: 'Valid positive prices are required' });

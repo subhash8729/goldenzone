@@ -33,14 +33,15 @@ export function ProductGridSkeleton({ count = 6 }) {
 }
 
 import { Check, X } from 'lucide-react';
+import { createPortal } from 'react-dom';
 
 export function Toast({ toast, message, onClose, onOpenCart }) {
   const data = toast || (message ? (typeof message === 'object' ? message : { type: 'text', message }) : null);
-  if (!data) return null;
+  if (!data || typeof document === 'undefined') return null;
 
   const isCart = data.type === 'cart';
 
-  return (
+  const content = (
     <aside
       role="status"
       aria-live="polite"
@@ -48,9 +49,9 @@ export function Toast({ toast, message, onClose, onOpenCart }) {
       className="animate-toast floating-cart-toast"
       style={{
         position: 'fixed',
-        top: '74px',
+        top: '76px',
         right: '20px',
-        zIndex: 120,
+        zIndex: 999999,
         backgroundColor: '#FFFFFF',
         color: '#1F1A17',
         padding: isCart ? '7px 12px 7px 10px' : '9px 16px',
@@ -179,4 +180,6 @@ export function Toast({ toast, message, onClose, onOpenCart }) {
       )}
     </aside>
   );
+
+  return createPortal(content, document.body);
 }

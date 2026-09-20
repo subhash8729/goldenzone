@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useAuth } from '../context/AuthContext';
 import { authService } from '../services/api';
 import { X, Smartphone, KeyRound, User, CheckCircle2 } from 'lucide-react';
@@ -24,7 +25,7 @@ export default function AuthModal() {
     return () => clearInterval(timer);
   }, [countdown]);
 
-  if (!isAuthModalOpen) return null;
+  if (!isAuthModalOpen || typeof document === 'undefined') return null;
 
   const resetModal = () => {
     setStep('mobile');
@@ -61,57 +62,71 @@ export default function AuthModal() {
 
   // Step 2: Verify OTP
   const handleVerifyOtp = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     setError('');
-    if (!otp.trim()) {
-      setError('Please enter the 6-digit OTP code.');
+    const cleanOtp = otp.trim();
+    if (cleanOtp.length !== 6) {
+      setError('Please enter the 6-digit OTP received via SMS.');
       return;
     }
 
     setLoading(true);
     try {
       const cleanNumber = mobile.replace(/\D/g, '').slice(-10);
-      const res = await authService.verifyOtp(cleanNumber, otp.trim());
+      const res = await authService.verifyOtp(cleanNumber, cleanOtp);
 
-      login(res.data.token, res.data.customer);
+      if (res.data?.success && res.data?.token) {
+        login(res.data.token, res.data.customer);
 
-      if (res.data.isNewUser) {
-        setStep('profile');
+        // If profile is already complete, close modal
+        if (res.data.customer?.full_name && res.data.customer?.address) {
+          resetModal();
+        } else {
+          // Prompt to fill full name and address for smoother 1-click checkout
+          setStep('profile');
+        }
       } else {
-        resetModal();
+        setError(res.data?.message || 'Invalid OTP. Please check the code.');
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'Invalid OTP. Please check and retry.');
+      setError(err.response?.data?.message || 'Incorrect OTP. Please enter the valid SMS code.');
     } finally {
       setLoading(false);
     }
   };
 
-  // Step 3: Complete Profile (New User)
+  // Step 3: Save Name & Address
   const handleCompleteProfile = async (skip = false) => {
-    setLoading(true);
     setError('');
-    try {
-      const nameToSave = skip || !fullName.trim() ? 'Not Named' : fullName.trim();
-      const res = await authService.updateProfile({
-        full_name: nameToSave,
-        address: address.trim() || null
-      });
+    if (!skip && !fullName.trim()) {
+      setError('Please enter your full name.');
+      return;
+    }
 
-      updateUser(res.data.customer);
+    setLoading(true);
+    try {
+      const res = skip
+        ? null
+        : await authService.updateProfile({
+            full_name: fullName.trim(),
+            address: address.trim()
+          });
+      if (res?.data?.customer) {
+        updateUser(res.data.customer);
+      }
       resetModal();
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to update profile.');
+      setError(err.response?.data?.message || 'Failed to save your profile. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  return (
+  const modalContent = (
     <div style={{
       position: 'fixed',
       inset: 0,
-      zIndex: 100,
+      zIndex: 999990,
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
@@ -431,4 +446,6 @@ export default function AuthModal() {
       </div>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 }

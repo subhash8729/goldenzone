@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { Star, CheckCircle2, MessageSquarePlus } from 'lucide-react';
 import { reviewService } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 
 export default function ReviewsSection({ reviews = [], productId, onReviewSubmitted }) {
+  const { isAuthenticated, user, openAuthModal } = useAuth();
   const [showAddForm, setShowAddForm] = useState(false);
-  const [customerName, setCustomerName] = useState('');
   const [rating, setRating] = useState(5);
   const [reviewText, setReviewText] = useState('');
   const [loading, setLoading] = useState(false);
@@ -12,19 +13,22 @@ export default function ReviewsSection({ reviews = [], productId, onReviewSubmit
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!customerName.trim() || !reviewText.trim()) return;
+    if (!isAuthenticated) {
+      setMessage('Please log in to write a verified review.');
+      openAuthModal();
+      return;
+    }
+    if (!reviewText.trim()) return;
 
     setLoading(true);
     setMessage('');
     try {
       await reviewService.submitReview({
         product_id: productId,
-        customer_name: customerName.trim(),
         rating,
         review_text: reviewText.trim()
       });
-      setMessage('Thank you! Your review has been recorded.');
-      setCustomerName('');
+      setMessage('Thank you! Your verified review was submitted for approval.');
       setReviewText('');
       setShowAddForm(false);
       if (onReviewSubmitted) onReviewSubmitted();
@@ -47,7 +51,14 @@ export default function ReviewsSection({ reviews = [], productId, onReviewSubmit
           </p>
         </div>
         <button
-          onClick={() => setShowAddForm(!showAddForm)}
+          onClick={() => {
+            if (!isAuthenticated) {
+              setMessage('Please log in to write a verified review.');
+              openAuthModal();
+              return;
+            }
+            setShowAddForm(!showAddForm);
+          }}
           style={{
             backgroundColor: 'transparent',
             border: '1px solid #520612',
@@ -93,25 +104,9 @@ export default function ReviewsSection({ reviews = [], productId, onReviewSubmit
             Share your experience
           </h4>
 
-          <div style={{ marginBottom: '10px' }}>
-            <label style={{ display: 'block', fontSize: '0.76rem', fontWeight: 600, marginBottom: '4px' }}>
-              Your Name
-            </label>
-            <input
-              type="text"
-              required
-              value={customerName}
-              onChange={(e) => setCustomerName(e.target.value)}
-              placeholder="e.g. Ramesh V."
-              style={{
-                width: '100%',
-                padding: '8px 10px',
-                border: '1px solid #D4C9BC',
-                borderRadius: '6px',
-                fontSize: '0.86rem'
-              }}
-            />
-          </div>
+          <p style={{ fontSize: '0.76rem', color: '#6B635B', marginBottom: '10px' }}>
+            Posting as <strong>{user?.full_name && user.full_name !== 'Not Named' ? user.full_name : 'Verified customer'}</strong>.
+          </p>
 
           <div style={{ marginBottom: '10px' }}>
             <label style={{ display: 'block', fontSize: '0.76rem', fontWeight: 600, marginBottom: '4px' }}>

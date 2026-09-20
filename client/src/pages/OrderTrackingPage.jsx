@@ -2,20 +2,26 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import OrderTracker from '../components/OrderTracker';
 import { orderService } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 import { Search, ArrowRight, Package } from 'lucide-react';
 
 export default function OrderTrackingPage() {
   const { orderNumber } = useParams();
+  const { isAuthenticated, loading: authLoading, openAuthModal } = useAuth();
   const [inputOrderNum, setInputOrderNum] = useState(orderNumber || '');
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(Boolean(orderNumber));
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (orderNumber) {
+    if (orderNumber && isAuthenticated) {
       loadOrder(orderNumber);
+    } else if (orderNumber && !authLoading) {
+      setLoading(false);
+      setError('Please log in to view your order tracking details.');
+      openAuthModal();
     }
-  }, [orderNumber]);
+  }, [orderNumber, isAuthenticated, authLoading, openAuthModal]);
 
   const loadOrder = async (num) => {
     setLoading(true);
@@ -35,7 +41,10 @@ export default function OrderTrackingPage() {
 
   const handleSearch = (e) => {
     e.preventDefault();
-    if (inputOrderNum.trim()) {
+    if (!isAuthenticated) {
+      setError('Please log in to view your order tracking details.');
+      openAuthModal();
+    } else if (inputOrderNum.trim()) {
       loadOrder(inputOrderNum.trim());
     }
   };

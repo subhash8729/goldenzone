@@ -18,13 +18,13 @@ function formatReadableDate(date) {
 
 /**
  * 1. Customer: Verify payment signature after checkout modal
- * Verifies Razorpay HMAC SHA256 signature and confirms order idempotently
+ * Verifies Razorpay HMAC SHA256 signature and confirms order idempotently.
+ * Rule: NO order is created in `orders` table until payment is verified server-side.
  */
 exports.verifyPayment = async (req, res, next) => {
   try {
+    const customerId = req.user.id;
     const {
-      order_id,
-      order_number,
       razorpay_order_id,
       razorpay_payment_id,
       razorpay_signature
@@ -37,7 +37,7 @@ exports.verifyPayment = async (req, res, next) => {
       });
     }
 
-    // Cryptographic signature check
+    // Cryptographic HMAC-SHA256 signature check (Server-side verification)
     const isValid = razorpayService.verifyPaymentSignature({
       razorpay_order_id,
       razorpay_payment_id,
@@ -45,14 +45,12 @@ exports.verifyPayment = async (req, res, next) => {
     });
 
     if (!isValid) {
-      // Record failure on payment record for tracking
+      // Mark draft as FAILED
       await db.query(
-        `UPDATE payments 
-         SET payment_status = 'FAILED', 
-             razorpay_payment_id = ?, 
-             error_reason = 'Signature verification failed' 
-         WHERE razorpay_order_id = ?`,
-        [razorpay_payment_id, razorpay_order_id]
+        `UPDATE order_drafts
+         SET status = 'FAILED'
+         WHERE razorpay_order_id = ? AND user_id = ? AND status = 'INITIATED'`,
+        [razorpay_order_id, customerId]
       );
 
       return res.status(400).json({
@@ -61,7 +59,7 @@ exports.verifyPayment = async (req, res, next) => {
       });
     }
 
-    // Fetch additional payment metadata (payment method: upi/card/netbanking etc.)
+    // Fetch additional payment metadata from Razorpay API
     let paymentMethod = 'RAZORPAY';
     try {
       const rzpPayment = await razorpayService.fetchPaymentDetails(razorpay_payment_id);
@@ -72,67 +70,161 @@ exports.verifyPayment = async (req, res, next) => {
       console.log('Notice: Could not fetch payment method detail from Razorpay:', e.message);
     }
 
-    // Update Order and Payment within an atomic MySQL transaction
+    // Create confirmed order atomically in MySQL transaction
     const verifyResult = await db.withTransaction(async (conn) => {
-      // Find order by id or razorpay_order_id
-      let findSql = `SELECT * FROM orders WHERE razorpay_order_id = ? FOR UPDATE`;
-      let findParams = [razorpay_order_id];
+      // 1. Idempotency check: Has this order already been confirmed?
+      const [existingOrders] = await conn.execute(
+        `SELECT id, order_number, payment_status, user_id
+         FROM orders WHERE razorpay_order_id = ? FOR UPDATE`,
+        [razorpay_order_id]
+      );
 
-      if (order_id) {
-        findSql = `SELECT * FROM orders WHERE id = ? FOR UPDATE`;
-        findParams = [order_id];
-      }
-
-      const [orderRows] = await conn.execute(findSql, findParams);
-
-      if (orderRows.length === 0) {
-        throw new Error('Order corresponding to this Razorpay payment was not found.');
-      }
-
-      const order = orderRows[0];
-
-      // IDEMPOTENCY CHECK: If already confirmed & paid, return immediately
-      if (order.payment_status === 'PAID') {
+      if (existingOrders.length > 0) {
+        const existing = existingOrders[0];
+        if (existing.user_id !== customerId) {
+          const error = new Error('This payment does not belong to your account.');
+          error.statusCode = 403;
+          throw error;
+        }
         return {
           alreadyVerified: true,
-          orderNumber: order.order_number,
-          orderId: order.id
+          orderNumber: existing.order_number,
+          orderId: existing.id
         };
       }
 
-      // Mark order as PAID
-      await conn.execute(
-        `UPDATE orders
-         SET payment_status = 'PAID',
-             razorpay_order_id = ?
-         WHERE id = ?`,
-        [razorpay_order_id, order.id]
+      // 2. Load draft from order_drafts
+      const [draftRows] = await conn.execute(
+        `SELECT * FROM order_drafts WHERE razorpay_order_id = ? FOR UPDATE`,
+        [razorpay_order_id]
       );
 
-      // Update payment record to PAID with transaction details
-      await conn.execute(
-        `UPDATE payments
-         SET payment_status = 'PAID',
-             razorpay_payment_id = ?,
-             transaction_id = ?,
-             razorpay_signature = ?,
-             payment_method = ?,
-             error_reason = NULL
-         WHERE order_id = ? OR razorpay_order_id = ?`,
+      if (draftRows.length === 0) {
+        throw new Error('Checkout session corresponding to this payment was not found or has expired.');
+      }
+
+      const draft = draftRows[0];
+      if (draft.user_id !== customerId) {
+        const error = new Error('This checkout session does not belong to your account.');
+        error.statusCode = 403;
+        throw error;
+      }
+      const delivery = typeof draft.delivery_details === 'string' ? JSON.parse(draft.delivery_details) : draft.delivery_details;
+      const items = typeof draft.items_data === 'string' ? JSON.parse(draft.items_data) : draft.items_data;
+
+      // 3. Insert confirmed Order record with PAID payment status ONLY NOW
+      const [orderInsert] = await conn.execute(
+        `INSERT INTO orders (
+          order_number, user_id, full_name, primary_mobile, secondary_mobile,
+          address, state, district, city, village, pincode,
+          latitude, longitude, maps_url,
+          subtotal, shipping_amount, total_amount, payment_mode, advance_amount, remaining_cod_amount,
+          payment_status, razorpay_order_id, is_shipped, is_delivered
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PAID', ?, 0, 0)`,
         [
-          razorpay_payment_id,
-          razorpay_payment_id,
-          razorpay_signature,
-          paymentMethod,
-          order.id,
+          draft.order_number,
+          draft.user_id,
+          delivery.full_name,
+          delivery.primary_mobile,
+          delivery.secondary_mobile || null,
+          delivery.address,
+          delivery.state,
+          delivery.district,
+          delivery.city || null,
+          delivery.village || null,
+          delivery.pincode,
+          delivery.validLat || null,
+          delivery.validLng || null,
+          delivery.mapsUrl || null,
+          draft.subtotal,
+          draft.shipping_amount,
+          draft.total_amount,
+          draft.payment_mode,
+          draft.advance_amount,
+          draft.remaining_cod_amount,
           razorpay_order_id
+        ]
+      );
+
+      const newOrderId = orderInsert.insertId;
+
+      // 4. Insert Order Items
+      for (const it of items) {
+        await conn.execute(
+          `INSERT INTO order_items (
+            order_id, product_id, product_name, product_sku, product_image,
+            unit_price, quantity, subtotal_price
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            newOrderId,
+            it.productId || it.product_id,
+            it.name || it.product_name,
+            it.sku || it.product_sku,
+            it.image || it.product_image || '',
+            it.unitPrice || it.unit_price,
+            it.quantity,
+            it.subtotalPrice || it.subtotal_price
+          ]
+        );
+      }
+
+      // 5. Insert Payment Record
+      await conn.execute(
+        `INSERT INTO payments (
+          order_id, user_id, amount, payment_mode, payment_type, remaining_cod_amount,
+          payment_method, transaction_id, razorpay_order_id, razorpay_payment_id,
+          razorpay_signature, payment_status, gateway
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PAID', 'RAZORPAY')`,
+        [
+          newOrderId,
+          draft.user_id,
+          draft.payable_amount,
+          draft.payment_mode,
+          draft.payment_mode === 'COD' ? 'COD_ADVANCE' : 'FULL',
+          draft.remaining_cod_amount,
+          paymentMethod,
+          razorpay_payment_id,
+          razorpay_order_id,
+          razorpay_payment_id,
+          razorpay_signature
+        ]
+      );
+
+      // 6. Mark draft as COMPLETED
+      await conn.execute(
+        `UPDATE order_drafts SET status = 'COMPLETED' WHERE id = ?`,
+        [draft.id]
+      );
+
+      // 7. Update customer saved delivery details
+      await conn.execute(
+        `UPDATE customers
+         SET full_name = ?,
+             secondary_mobile = ?,
+             address = ?,
+             state = ?,
+             district = ?,
+             city = ?,
+             village = ?,
+             pincode = ?
+         WHERE id = ?`,
+        [
+          delivery.full_name,
+          delivery.secondary_mobile || null,
+          delivery.address,
+          delivery.state,
+          delivery.district,
+          delivery.city || null,
+          delivery.village || null,
+          delivery.pincode,
+          draft.user_id
         ]
       );
 
       return {
         alreadyVerified: false,
-        orderNumber: order.order_number,
-        orderId: order.id
+        orderNumber: draft.order_number,
+        orderId: newOrderId
       };
     });
 
@@ -153,24 +245,25 @@ exports.verifyPayment = async (req, res, next) => {
  */
 exports.handlePaymentFailed = async (req, res, next) => {
   try {
+    const customerId = req.user.id;
     const {
-      order_id,
       razorpay_order_id,
-      razorpay_payment_id,
       error_description,
       error_code
     } = req.body;
 
     const reason = error_description || error_code || 'Payment cancelled or dismissed by customer';
+    const isCancel = reason.toLowerCase().includes('cancel') || reason.toLowerCase().includes('dismiss');
+    const newStatus = isCancel ? 'CANCELLED' : 'FAILED';
 
-    await db.query(
-      `UPDATE payments
-       SET payment_status = 'FAILED',
-           razorpay_payment_id = COALESCE(?, razorpay_payment_id),
-           error_reason = ?
-       WHERE (order_id = ? OR razorpay_order_id = ?) AND payment_status != 'PAID'`,
-      [razorpay_payment_id || null, reason, order_id || 0, razorpay_order_id || '']
-    );
+    if (razorpay_order_id) {
+      await db.query(
+        `UPDATE order_drafts
+         SET status = ?
+         WHERE razorpay_order_id = ? AND user_id = ? AND status = 'INITIATED'`,
+        [newStatus, razorpay_order_id, customerId]
+      );
+    }
 
     return res.status(200).json({
       success: true,
@@ -255,20 +348,18 @@ exports.handleWebhook = async (req, res, next) => {
 
         if (rzpOrderId) {
           const [orders] = await conn.execute(
-            `SELECT id, order_number, payment_status, payment_mode, total_amount, advance_amount, remaining_cod_amount 
+            `SELECT id, order_number, payment_status
              FROM orders WHERE razorpay_order_id = ? FOR UPDATE`,
             [rzpOrderId]
           );
 
           if (orders.length > 0) {
             const order = orders[0];
-
             if (order.payment_status !== 'PAID') {
               await conn.execute(
                 `UPDATE orders SET payment_status = 'PAID' WHERE id = ?`,
                 [order.id]
               );
-
               await conn.execute(
                 `UPDATE payments
                  SET payment_status = 'PAID',
@@ -279,26 +370,115 @@ exports.handleWebhook = async (req, res, next) => {
                  WHERE order_id = ? OR razorpay_order_id = ?`,
                 [rzpPaymentId, rzpPaymentId, method, order.id, rzpOrderId]
               );
+              console.log(`✅ [Razorpay Webhook]: Existing Order #${order.order_number} confirmed & marked as PAID via payment.captured`);
+            }
+          } else {
+            // Order was not yet created via client verify — create from draft
+            const [draftRows] = await conn.execute(
+              `SELECT * FROM order_drafts WHERE razorpay_order_id = ? FOR UPDATE`,
+              [rzpOrderId]
+            );
 
-              console.log(`✅ [Razorpay Webhook]: Order #${order.order_number} confirmed & marked as PAID via payment.captured`);
+            if (draftRows.length > 0) {
+              const draft = draftRows[0];
+              const delivery = typeof draft.delivery_details === 'string' ? JSON.parse(draft.delivery_details) : draft.delivery_details;
+              const items = typeof draft.items_data === 'string' ? JSON.parse(draft.items_data) : draft.items_data;
+
+              const [orderInsert] = await conn.execute(
+                `INSERT INTO orders (
+                  order_number, user_id, full_name, primary_mobile, secondary_mobile,
+                  address, state, district, city, village, pincode,
+                  latitude, longitude, maps_url,
+                  subtotal, shipping_amount, total_amount, payment_mode, advance_amount, remaining_cod_amount,
+                  payment_status, razorpay_order_id, is_shipped, is_delivered
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PAID', ?, 0, 0)`,
+                [
+                  draft.order_number,
+                  draft.user_id,
+                  delivery.full_name,
+                  delivery.primary_mobile,
+                  delivery.secondary_mobile || null,
+                  delivery.address,
+                  delivery.state,
+                  delivery.district,
+                  delivery.city || null,
+                  delivery.village || null,
+                  delivery.pincode,
+                  delivery.validLat || null,
+                  delivery.validLng || null,
+                  delivery.mapsUrl || null,
+                  draft.subtotal,
+                  draft.shipping_amount,
+                  draft.total_amount,
+                  draft.payment_mode,
+                  draft.advance_amount,
+                  draft.remaining_cod_amount,
+                  rzpOrderId
+                ]
+              );
+
+              const newOrderId = orderInsert.insertId;
+
+              for (const it of items) {
+                await conn.execute(
+                  `INSERT INTO order_items (
+                    order_id, product_id, product_name, product_sku, product_image,
+                    unit_price, quantity, subtotal_price
+                  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+                  [
+                    newOrderId,
+                    it.productId || it.product_id,
+                    it.name || it.product_name,
+                    it.sku || it.product_sku,
+                    it.image || it.product_image || '',
+                    it.unitPrice || it.unit_price,
+                    it.quantity,
+                    it.subtotalPrice || it.subtotal_price
+                  ]
+                );
+              }
+
+              await conn.execute(
+                `INSERT INTO payments (
+                  order_id, user_id, amount, payment_mode, payment_type, remaining_cod_amount,
+                  payment_method, transaction_id, razorpay_order_id, razorpay_payment_id,
+                  payment_status, gateway
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PAID', 'RAZORPAY')`,
+                [
+                  newOrderId,
+                  draft.user_id,
+                  draft.payable_amount,
+                  draft.payment_mode,
+                  draft.payment_mode === 'COD' ? 'COD_ADVANCE' : 'FULL',
+                  draft.remaining_cod_amount,
+                  method,
+                  rzpPaymentId,
+                  rzpOrderId,
+                  rzpPaymentId
+                ]
+              );
+
+              await conn.execute(
+                `UPDATE order_drafts SET status = 'COMPLETED' WHERE id = ?`,
+                [draft.id]
+              );
+
+              console.log(`✅ [Razorpay Webhook]: Order #${draft.order_number} created from draft and marked PAID via webhook payment.captured`);
             }
           }
         }
       } else if (event === 'payment.failed') {
         const paymentEntity = payload.payment?.entity;
         const rzpOrderId = paymentEntity?.order_id;
-        const rzpPaymentId = paymentEntity?.id;
-        const errorDesc = paymentEntity?.error_description || paymentEntity?.error_reason || 'Payment failed';
 
         if (rzpOrderId) {
           await conn.execute(
-            `UPDATE payments
-             SET payment_status = 'FAILED',
-                 razorpay_payment_id = COALESCE(?, razorpay_payment_id),
-                 error_reason = ?
-             WHERE razorpay_order_id = ? AND payment_status != 'PAID'`,
-            [rzpPaymentId, errorDesc, rzpOrderId]
+            `UPDATE order_drafts
+             SET status = 'FAILED'
+             WHERE razorpay_order_id = ? AND status = 'INITIATED'`,
+            [rzpOrderId]
           );
+          console.log(`ℹ️ [Razorpay Webhook]: Draft for ${rzpOrderId} marked as FAILED`);
         }
       } else if (event === 'refund.created' || event === 'refund.processed') {
         const refundEntity = payload.refund?.entity;
@@ -369,7 +549,9 @@ exports.handleWebhook = async (req, res, next) => {
 exports.getPayments = async (req, res, next) => {
   try {
     const { search, payment_status, page = 1, limit = 50 } = req.query;
-    const offset = (Math.max(1, parseInt(page, 10)) - 1) * parseInt(limit, 10);
+    const pageNumber = Math.max(1, parseInt(page, 10) || 1);
+    const pageSize = Math.min(100, Math.max(1, parseInt(limit, 10) || 50));
+    const offset = (pageNumber - 1) * pageSize;
     const params = [];
     const countParams = [];
 
@@ -417,7 +599,7 @@ exports.getPayments = async (req, res, next) => {
        ${whereSql}
        ORDER BY p.id DESC
        LIMIT ? OFFSET ?`,
-      [...params, parseInt(limit, 10), offset]
+      [...params, pageSize, offset]
     );
 
     const formatted = payments.map((pm) => {
@@ -444,10 +626,10 @@ exports.getPayments = async (req, res, next) => {
       success: true,
       data: formatted,
       pagination: {
-        page: parseInt(page, 10),
-        limit: parseInt(limit, 10),
+        page: pageNumber,
+        limit: pageSize,
         totalItems,
-        totalPages: Math.ceil(totalItems / parseInt(limit, 10))
+        totalPages: Math.ceil(totalItems / pageSize)
       }
     });
   } catch (error) {

@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { X, Trash2, Plus, Minus, ArrowRight, ShieldCheck } from 'lucide-react';
@@ -22,19 +23,21 @@ export default function CartDrawer() {
     navigate('/checkout');
   };
 
-  return (
+  if (typeof document === 'undefined') return null;
+
+  const drawerContent = (
     <>
       {/* Backdrop with smooth fade */}
       <div
         className={`drawer-backdrop ${isCartOpen ? 'open' : ''}`}
-        style={{ zIndex: 80 }}
+        style={{ zIndex: 99990 }}
         onClick={closeCart}
       />
 
       {/* Drawer panel with smooth GPU slide */}
       <div
         className={`drawer-panel-right ${isCartOpen ? 'open' : ''}`}
-        style={{ zIndex: 81 }}
+        style={{ zIndex: 99991 }}
       >
         {/* Header */}
         <div style={{
@@ -78,8 +81,8 @@ export default function CartDrawer() {
           <ShieldCheck size={14} color="#C5A059" /> Free Insured Delivery on this order
         </div>
 
-        {/* Cart Item List */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
+        {/* Cart Item List - content-based height without pushing Proceed to Pay to the bottom */}
+        <div style={{ maxHeight: '46vh', overflowY: 'auto', padding: '14px 16px', flexShrink: 1, flexGrow: 0 }}>
           {cart.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '40px 20px', color: '#8E857C' }}>
               <div style={{ fontSize: '2.5rem', marginBottom: '12px' }}>🛍️</div>
@@ -230,11 +233,13 @@ export default function CartDrawer() {
                 letterSpacing: '0.03em'
               }}
             >
-              PROCEED TO CHECKOUT <ArrowRight size={16} />
+              PROCEED TO PAY <ArrowRight size={16} />
             </button>
           </div>
         )}
       </div>
     </>
   );
+
+  return createPortal(drawerContent, document.body);
 }

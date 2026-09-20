@@ -17,7 +17,9 @@ function getRelativeTimeString(date) {
 exports.getCustomers = async (req, res, next) => {
   try {
     const { search, page = 1, limit = 50 } = req.query;
-    const offset = (Math.max(1, parseInt(page, 10)) - 1) * parseInt(limit, 10);
+    const pageNumber = Math.max(1, parseInt(page, 10) || 1);
+    const pageSize = Math.min(100, Math.max(1, parseInt(limit, 10) || 50));
+    const offset = (pageNumber - 1) * pageSize;
     const params = [];
     const countParams = [];
 
@@ -43,7 +45,7 @@ exports.getCustomers = async (req, res, next) => {
        GROUP BY c.id
        ORDER BY c.id DESC
        LIMIT ? OFFSET ?`,
-      [...params, parseInt(limit, 10), offset]
+      [...params, pageSize, offset]
     );
 
     const formatted = customers.map((c) => ({
@@ -57,10 +59,10 @@ exports.getCustomers = async (req, res, next) => {
       success: true,
       data: formatted,
       pagination: {
-        page: parseInt(page, 10),
-        limit: parseInt(limit, 10),
+        page: pageNumber,
+        limit: pageSize,
         totalItems,
-        totalPages: Math.ceil(totalItems / parseInt(limit, 10))
+        totalPages: Math.ceil(totalItems / pageSize)
       }
     });
   } catch (error) {

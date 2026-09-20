@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, Outlet } from 'react-router-dom';
 import { useAdminAuth } from '../context/AdminAuthContext';
 import {
@@ -25,6 +25,14 @@ export default function AdminLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(() => window.innerWidth > 900);
+  const storefrontUrl = import.meta.env.VITE_STOREFRONT_URL || (import.meta.env.DEV ? 'http://localhost:5173' : '');
+
+  useEffect(() => {
+    const handleResize = () => setIsDesktop(window.innerWidth > 900);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const navItems = [
     { label: 'Dashboard', path: '/', icon: LayoutDashboard },
@@ -80,7 +88,7 @@ export default function AdminLayout() {
         bottom: 0,
         left: 0,
         zIndex: 50,
-        transform: isSidebarOpen || window.innerWidth > 900 ? 'translateX(0)' : 'translateX(-100%)',
+        transform: isSidebarOpen || isDesktop ? 'translateX(0)' : 'translateX(-100%)',
         transition: 'transform 0.25s ease',
         boxShadow: '4px 0 20px rgba(0,0,0,0.1)'
       }}>
@@ -109,7 +117,7 @@ export default function AdminLayout() {
           </div>
           <button
             onClick={() => setIsSidebarOpen(false)}
-            style={{ display: window.innerWidth <= 900 ? 'block' : 'none', background: 'none', border: 'none', color: '#FFF', cursor: 'pointer' }}
+            style={{ display: !isDesktop ? 'block' : 'none', background: 'none', border: 'none', color: '#FFF', cursor: 'pointer' }}
           >
             <X size={20} />
           </button>
@@ -154,9 +162,9 @@ export default function AdminLayout() {
         </nav>
 
         {/* View Storefront Link */}
-        <div style={{ padding: '0 12px 10px' }}>
+        {storefrontUrl && <div style={{ padding: '0 12px 10px' }}>
           <a
-            href="http://localhost:5173"
+            href={storefrontUrl}
             target="_blank"
             rel="noopener noreferrer"
             style={{
@@ -175,7 +183,7 @@ export default function AdminLayout() {
           >
             <ExternalLink size={13} /> View Live Storefront
           </a>
-        </div>
+        </div>}
 
         {/* Admin User Card & Logout */}
         <div style={{
@@ -215,7 +223,7 @@ export default function AdminLayout() {
       {/* Main Content Area */}
       <div style={{
         flex: 1,
-        marginLeft: window.innerWidth > 900 ? '260px' : 0,
+        marginLeft: isDesktop ? '260px' : 0,
         display: 'flex',
         flexDirection: 'column',
         minHeight: '100vh',

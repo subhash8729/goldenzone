@@ -5,7 +5,7 @@ import { adminAuthService } from '../services/api';
 import { Lock, Smartphone, KeyRound, ShieldAlert, CheckCircle2, Send } from 'lucide-react';
 
 export default function LoginPage() {
-  const [mobile, setMobile] = useState('7976580806');
+  const [mobile, setMobile] = useState('');
   const [password, setPassword] = useState('');
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);

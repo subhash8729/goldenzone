@@ -42,19 +42,27 @@ const allowedOrigins = rawOrigins
   .map(url => url.trim().replace(/\/$/, ''))
   .filter(Boolean);
 
+function isAllowedOrigin(origin) {
+  const cleanOrigin = origin.trim().replace(/\/$/, '');
+  if (allowedOrigins.includes(cleanOrigin)) return true;
+
+  try {
+    const hostname = new URL(cleanOrigin).hostname.toLowerCase();
+    const appDomain = String(config.appDomain || '').trim().toLowerCase();
+    return Boolean(appDomain) && (hostname === appDomain || hostname.endsWith(`.${appDomain}`));
+  } catch {
+    return false;
+  }
+}
+
 app.use(cors({
   origin: function (origin, callback) {
     // Allow requests with no origin (mobile apps, curl, server-to-server)
     if (!origin) return callback(null, true);
-    const cleanOrigin = origin.trim().replace(/\/$/, '');
-    if (
-      allowedOrigins.includes(cleanOrigin) ||
-      process.env.NODE_ENV === 'development' ||
-      (config.appDomain && cleanOrigin.endsWith(config.appDomain))
-    ) {
+    if (config.nodeEnv === 'development' || isAllowedOrigin(origin)) {
       return callback(null, true);
     }
-    return callback(null, true); // Permissive to allow separate admin deployments to connect with credentials
+    return callback(new Error('Origin is not permitted by CORS policy.'));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
@@ -125,3 +133,8 @@ app.use(notFoundHandler);
 app.use(errorHandler);
 
 module.exports = app;
+
+// If executed directly, run the server entry point
+if (require.main === module) {
+  require('./server');
+}

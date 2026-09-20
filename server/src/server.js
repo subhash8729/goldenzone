@@ -3,6 +3,20 @@ const config = require('./config/env');
 const db = require('./config/db');
 
 async function startServer() {
+  if (config.nodeEnv === 'production') {
+    const required = [
+      ['JWT_SECRET', process.env.JWT_SECRET],
+      ['RAZORPAY_KEY_ID', config.razorpayKeyId],
+      ['RAZORPAY_KEY_SECRET', config.razorpayKeySecret],
+      ['RAZORPAY_WEBHOOK_SECRET', config.razorpayWebhookSecret],
+      ['RENFLAIR_API_KEY', config.renflairApiKey]
+    ].filter(([, value]) => !value);
+
+    if (required.length > 0) {
+      throw new Error(`Missing required production environment variables: ${required.map(([key]) => key).join(', ')}`);
+    }
+  }
+
   // Test MySQL connection
   const dbStatus = await db.testConnection();
   if (dbStatus.connected) {

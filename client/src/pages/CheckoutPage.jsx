@@ -69,6 +69,13 @@ export default function CheckoutPage() {
     }
   }, [isAuthenticated]);
 
+  // Populate a newly authenticated customer's known details without overwriting form edits.
+  useEffect(() => {
+    if (!user) return;
+    if (!fullName && user.full_name && user.full_name !== 'Not Named') setFullName(user.full_name);
+    if (!primaryMobile && user.mobile_number) setPrimaryMobile(user.mobile_number);
+  }, [user, fullName, primaryMobile]);
+
   // 2. Fetch saved customer details in the background (Non-blocking)
   useEffect(() => {
     if (isAuthenticated) {
@@ -166,7 +173,6 @@ export default function CheckoutPage() {
           setPendingOrderInfo(orderData);
           setOrderError('Payment was not completed. Your jewellery bag and delivery details are preserved. You can click "Retry Payment" below.');
           paymentService.reportPaymentFailed({
-            order_id: orderData.orderId,
             razorpay_order_id: orderData.razorpayOrderId,
             error_description: 'Checkout modal cancelled by customer'
           }).catch(() => {});
@@ -177,8 +183,6 @@ export default function CheckoutPage() {
           setVerifying(true);
           setOrderError('');
           const verifyRes = await paymentService.verifyPayment({
-            order_id: orderData.orderId,
-            order_number: orderData.orderNumber,
             razorpay_order_id: response.razorpay_order_id,
             razorpay_payment_id: response.razorpay_payment_id,
             razorpay_signature: response.razorpay_signature
@@ -186,7 +190,8 @@ export default function CheckoutPage() {
 
           if (verifyRes.data?.success) {
             clearCart();
-            navigate(`/orders/${orderData.orderNumber}`);
+            const confirmedNumber = verifyRes.data?.orderNumber || orderData.orderNumber;
+            navigate(`/orders/${confirmedNumber}`);
           } else {
             setOrderError(verifyRes.data?.message || 'Payment verification failed. Please contact customer care.');
           }
@@ -207,7 +212,6 @@ export default function CheckoutPage() {
         const errMsg = resp.error?.description || 'Payment was declined by your bank/UPI app. Please retry with another payment method.';
         setOrderError(errMsg);
         paymentService.reportPaymentFailed({
-          order_id: orderData.orderId,
           razorpay_order_id: orderData.razorpayOrderId,
           razorpay_payment_id: resp.error?.metadata?.payment_id,
           error_code: resp.error?.code,
@@ -250,6 +254,14 @@ export default function CheckoutPage() {
     }
     if (!district.trim() || !pincode.trim()) {
       setOrderError('Please fill in District and PIN Code.');
+      return;
+    }
+    if (!/^\d{6}$/.test(pincode.trim())) {
+      setOrderError('Please enter a valid 6-digit PIN Code.');
+      return;
+    }
+    if (secondaryMobile && secondaryMobile.replace(/\D/g, '').length !== 10) {
+      setOrderError('Please enter a valid 10-digit alternate mobile number, or leave it blank.');
       return;
     }
 

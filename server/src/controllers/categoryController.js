@@ -106,6 +106,11 @@ exports.updateCategory = async (req, res, next) => {
     const newName = (name && name.trim()) ? name.trim() : current.name;
     const newSlug = slugify(newName);
 
+    const slugConflict = await db.query('SELECT id FROM categories WHERE slug = ? AND id != ?', [newSlug, id]);
+    if (slugConflict.length > 0) {
+      return res.status(400).json({ success: false, message: 'A category with this name already exists' });
+    }
+
     await db.query(
       `UPDATE categories
        SET name = ?,

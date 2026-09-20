@@ -2,6 +2,7 @@ import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAdminAuth } from './context/AdminAuthContext';
 import AdminLayout from './layouts/AdminLayout';
+import ErrorBoundary from './components/ErrorBoundary';
 
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
@@ -49,34 +50,36 @@ export default function App() {
   const { isAuthenticated, loading } = useAdminAuth();
 
   return (
-    <Routes>
-      <Route
-        path="/login"
-        element={
-          !loading && isAuthenticated ? <Navigate to="/" replace /> : <LoginPage />
-        }
-      />
+    <ErrorBoundary>
+      <Routes>
+        <Route
+          path="/login"
+          element={
+            !loading && isAuthenticated ? <Navigate to="/" replace /> : <LoginPage />
+          }
+        />
 
-      <Route
-        path="/"
-        element={
-          <ProtectedRoute>
-            <AdminLayout />
-          </ProtectedRoute>
-        }
-      >
-        <Route index element={<DashboardPage />} />
-        <Route path="orders" element={<OrdersPage />} />
-        <Route path="products" element={<ProductsPage />} />
-        <Route path="categories" element={<CategoriesPage />} />
-        <Route path="customers" element={<CustomersPage />} />
-        <Route path="payments" element={<PaymentsPage />} />
-        <Route path="reviews" element={<ReviewsPage />} />
-        <Route path="settings" element={<SiteSettingsPage />} />
-        <Route path="notes" element={<AdminNotesPage />} />
-        <Route path="account" element={<AdminAccountPage />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Route>
-    </Routes>
+        <Route
+          path="/"
+          element={
+            <ProtectedRoute>
+              <AdminLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<DashboardPage />} />
+          <Route path="orders" element={<OrdersPage />} />
+          <Route path="products" element={<ProductsPage />} />
+          <Route path="categories" element={<CategoriesPage />} />
+          <Route path="customers" element={<CustomersPage />} />
+          <Route path="payments" element={<PaymentsPage />} />
+          <Route path="reviews" element={<ReviewsPage />} />
+          <Route path="settings" element={<SiteSettingsPage />} />
+          <Route path="notes" element={<AdminNotesPage />} />
+          <Route path="account" element={<AdminAccountPage />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Route>
+      </Routes>
+    </ErrorBoundary>
   );
 }
