@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { useAdminAuth } from '../context/AdminAuthContext';
-import { adminAuthService } from '../services/api';
+import { adminAuthService, getErrorMessage } from '../services/api';
 import { ShieldCheck, KeyRound, CheckCircle2, AlertCircle } from 'lucide-react';
 
 export default function AdminAccountPage() {
-  const { admin, logout } = useAdminAuth();
+  const { admin } = useAdminAuth();
 
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -35,8 +35,9 @@ export default function AdminAccountPage() {
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
+      setTimeout(() => setMessage(''), 4500);
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to update password');
+      setError(getErrorMessage(err, 'Failed to update password'));
     } finally {
       setLoading(false);
     }
@@ -59,7 +60,8 @@ export default function AdminAccountPage() {
         borderRadius: '12px',
         border: '1px solid #E2E8F0',
         padding: '18px',
-        marginBottom: '20px'
+        marginBottom: '20px',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.03)'
       }}>
         <h3 style={{ fontSize: '0.94rem', fontWeight: 700, color: '#0F172A', marginBottom: '12px' }}>
           Profile Details
@@ -67,11 +69,13 @@ export default function AdminAccountPage() {
         <div style={{ display: 'grid', gap: '8px', fontSize: '0.84rem' }}>
           <div>
             <span style={{ color: '#64748B' }}>Administrator:</span>
-            <strong style={{ marginLeft: '8px', color: '#0F172A' }}>{admin?.full_name || 'Subhash Dhaka'}</strong>
+            <strong style={{ marginLeft: '8px', color: '#0F172A' }}>{admin?.full_name || 'Admin User'}</strong>
           </div>
           <div>
             <span style={{ color: '#64748B' }}>Registered Mobile:</span>
-            <strong style={{ marginLeft: '8px', color: '#0F172A' }}>+91 {admin?.mobile_number || '7976580806'}</strong>
+            <strong style={{ marginLeft: '8px', color: '#0F172A' }}>
+              {admin?.mobile_number ? `+91 ${admin.mobile_number}` : 'N/A'}
+            </strong>
           </div>
           <div>
             <span style={{ color: '#64748B' }}>Security Role:</span>
@@ -87,21 +91,22 @@ export default function AdminAccountPage() {
         backgroundColor: '#FFFFFF',
         borderRadius: '12px',
         border: '1px solid #E2E8F0',
-        padding: '20px'
+        padding: '20px',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.03)'
       }}>
         <h3 style={{ fontSize: '0.94rem', fontWeight: 700, color: '#520612', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '6px' }}>
           <KeyRound size={16} /> Change Account Password
         </h3>
 
         {message && (
-          <div style={{ backgroundColor: '#DCFCE7', border: '1px solid #86EFAC', color: '#166534', padding: '10px 12px', borderRadius: '6px', fontSize: '0.80rem', marginBottom: '14px' }}>
-            ✓ {message}
+          <div style={{ backgroundColor: '#DCFCE7', border: '1px solid #86EFAC', color: '#166534', padding: '10px 12px', borderRadius: '6px', fontSize: '0.80rem', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <CheckCircle2 size={16} /> {message}
           </div>
         )}
 
         {error && (
-          <div style={{ backgroundColor: '#FEF2F2', border: '1px solid #FCA5A5', color: '#991B1B', padding: '10px 12px', borderRadius: '6px', fontSize: '0.80rem', marginBottom: '14px' }}>
-            ⚠️ {error}
+          <div style={{ backgroundColor: '#FEF2F2', border: '1px solid #FCA5A5', color: '#991B1B', padding: '10px 12px', borderRadius: '6px', fontSize: '0.80rem', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <AlertCircle size={16} /> {error}
           </div>
         )}
 
@@ -146,7 +151,7 @@ export default function AdminAccountPage() {
             type="submit"
             disabled={loading}
             className="btn-primary"
-            style={{ width: 'fit-content', padding: '9px 20px', marginTop: '6px' }}
+            style={{ width: 'fit-content', padding: '9px 20px', marginTop: '6px', opacity: loading ? 0.7 : 1 }}
           >
             {loading ? 'Updating...' : 'Update Password'}
           </button>

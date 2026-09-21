@@ -21,7 +21,7 @@ exports.getDashboardStats = async (req, res, next) => {
     }
 
     // 1. Product stats
-    const [prodStats] = await db.query(
+    const prodRows = await db.query(
       `SELECT 
         COUNT(*) as total_products,
         SUM(CASE WHEN is_active = 1 AND deleted_at IS NULL THEN 1 ELSE 0 END) as active_products,
@@ -29,42 +29,48 @@ exports.getDashboardStats = async (req, res, next) => {
         SUM(CASE WHEN deleted_at IS NOT NULL THEN 1 ELSE 0 END) as deleted_products
        FROM products`
     );
+    const prodStats = prodRows[0] || {};
 
     // 2. Customer count
-    const [custStats] = await db.query(`SELECT COUNT(*) as total_customers FROM customers`);
+    const custRows = await db.query(`SELECT COUNT(*) as total_customers FROM customers`);
+    const custStats = custRows[0] || {};
 
-    // 3. Order counts
-    const [orderStats] = await db.query(
+    // 3. Order counts & revenue (strictly paid non-deleted orders)
+    const orderRows = await db.query(
       `SELECT 
-        COUNT(*) as total_orders,
-        SUM(CASE WHEN is_shipped = 0 AND is_delivered = 0 THEN 1 ELSE 0 END) as pending_orders,
-        SUM(CASE WHEN is_shipped = 1 AND is_delivered = 0 THEN 1 ELSE 0 END) as shipped_orders,
-        SUM(CASE WHEN is_delivered = 1 THEN 1 ELSE 0 END) as delivered_orders,
-        COALESCE(SUM(total_amount), 0) as total_revenue,
-        COALESCE(SUM(CASE WHEN is_delivered = 1 THEN total_amount ELSE 0 END), 0) as delivered_revenue,
-        COALESCE(SUM(CASE WHEN is_delivered = 0 THEN total_amount ELSE 0 END), 0) as pending_revenue
+        COUNT(CASE WHEN payment_status = 'PAID' THEN 1 END) as total_orders,
+        SUM(CASE WHEN payment_status = 'PAID' AND is_shipped = 0 AND is_delivered = 0 THEN 1 ELSE 0 END) as pending_orders,
+        SUM(CASE WHEN payment_status = 'PAID' AND is_shipped = 1 AND is_delivered = 0 THEN 1 ELSE 0 END) as shipped_orders,
+        SUM(CASE WHEN payment_status = 'PAID' AND is_delivered = 1 THEN 1 ELSE 0 END) as delivered_orders,
+        COALESCE(SUM(CASE WHEN payment_status = 'PAID' THEN total_amount ELSE 0 END), 0) as total_revenue,
+        COALESCE(SUM(CASE WHEN payment_status = 'PAID' AND is_delivered = 1 THEN total_amount ELSE 0 END), 0) as delivered_revenue,
+        COALESCE(SUM(CASE WHEN payment_status = 'PAID' AND is_delivered = 0 THEN total_amount ELSE 0 END), 0) as pending_revenue
        FROM orders
        ${dateWhereOrders}`,
       params
     );
+    const orderStats = orderRows[0] || {};
 
     // 4. Deleted orders count
-    const [deletedOrdersStats] = await db.query(
+    const deletedRows = await db.query(
       `SELECT COUNT(*) as deleted_orders FROM orders WHERE deleted_at IS NOT NULL`
     );
+    const deletedOrdersStats = deletedRows[0] || {};
 
     // 5. Today's and This Month's Revenue (always calculated for reference)
-    const [todayRevenue] = await db.query(
+    const todayRevRows = await db.query(
       `SELECT COALESCE(SUM(total_amount), 0) as today_rev 
        FROM orders 
-       WHERE deleted_at IS NULL AND DATE(created_at) = CURDATE()`
+       WHERE deleted_at IS NULL AND payment_status = 'PAID' AND DATE(created_at) = CURDATE()`
     );
+    const todayRevenue = todayRevRows[0] || {};
 
-    const [thisMonthRevenue] = await db.query(
+    const monthRevRows = await db.query(
       `SELECT COALESCE(SUM(total_amount), 0) as month_rev 
        FROM orders 
-       WHERE deleted_at IS NULL AND MONTH(created_at) = MONTH(CURRENT_DATE()) AND YEAR(created_at) = YEAR(CURRENT_DATE())`
+       WHERE deleted_at IS NULL AND payment_status = 'PAID' AND MONTH(created_at) = MONTH(CURRENT_DATE()) AND YEAR(created_at) = YEAR(CURRENT_DATE())`
     );
+    const thisMonthRevenue = monthRevRows[0] || {};
 
     // 6. Recent 5 orders for dashboard glance
     const recentOrders = await db.query(
@@ -101,7 +107,7 @@ exports.getDashboardStats = async (req, res, next) => {
           today: parseFloat(todayRevenue.today_rev || 0),
           thisMonth: parseFloat(thisMonthRevenue.month_rev || 0)
         },
-        recentOrders: recentOrders.map((ro) => ({
+        recentOrders: (recentOrders || []).map((ro) => ({
           ...ro,
           total_amount: parseFloat(ro.total_amount)
         }))

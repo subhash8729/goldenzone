@@ -36,9 +36,9 @@ exports.getCustomers = async (req, res, next) => {
 
     const customers = await db.query(
       `SELECT c.*,
-              COUNT(o.id) as total_orders,
-              COALESCE(SUM(CASE WHEN o.deleted_at IS NULL THEN o.total_amount ELSE 0 END), 0) as total_spent,
-              MAX(o.created_at) as last_order_date
+              COUNT(CASE WHEN o.deleted_at IS NULL AND o.payment_status = 'PAID' THEN o.id END) as total_orders,
+              COALESCE(SUM(CASE WHEN o.deleted_at IS NULL AND o.payment_status = 'PAID' THEN o.total_amount ELSE 0 END), 0) as total_spent,
+              MAX(CASE WHEN o.deleted_at IS NULL AND o.payment_status = 'PAID' THEN o.created_at END) as last_order_date
        FROM customers c
        LEFT JOIN orders o ON o.user_id = c.id
        ${whereSql}
@@ -74,8 +74,12 @@ exports.getCustomers = async (req, res, next) => {
 exports.getCustomerDetail = async (req, res, next) => {
   try {
     const { id } = req.params;
+    const customerId = parseInt(id, 10);
+    if (isNaN(customerId) || customerId <= 0) {
+      return res.status(400).json({ success: false, message: 'Invalid customer ID' });
+    }
 
-    const customers = await db.query('SELECT * FROM customers WHERE id = ?', [id]);
+    const customers = await db.query('SELECT * FROM customers WHERE id = ?', [customerId]);
     if (customers.length === 0) {
       return res.status(404).json({ success: false, message: 'Customer not found' });
     }
@@ -86,9 +90,9 @@ exports.getCustomerDetail = async (req, res, next) => {
       `SELECT o.*,
               (SELECT COUNT(*) FROM order_items oi WHERE oi.order_id = o.id) as item_count
        FROM orders o
-       WHERE o.user_id = ?
+       WHERE o.user_id = ? AND o.deleted_at IS NULL
        ORDER BY o.id DESC`,
-      [id]
+      [customerId]
     );
 
     return res.status(200).json({
@@ -100,7 +104,12 @@ exports.getCustomerDetail = async (req, res, next) => {
       orders: orders.map((o) => ({
         ...o,
         subtotal: parseFloat(o.subtotal),
-        total_amount: parseFloat(o.total_amount)
+        total_amount: parseFloat(o.total_amount),
+        advance_amount: parseFloat(o.advance_amount || 0),
+        remaining_cod_amount: parseFloat(o.remaining_cod_amount || 0),
+        payment_mode: o.payment_mode || 'ONLINE',
+        is_shipped: Boolean(o.is_shipped),
+        is_delivered: Boolean(o.is_delivered)
       }))
     });
   } catch (error) {

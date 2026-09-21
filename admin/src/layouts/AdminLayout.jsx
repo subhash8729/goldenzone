@@ -29,7 +29,13 @@ export default function AdminLayout() {
   const storefrontUrl = import.meta.env.VITE_STOREFRONT_URL || (import.meta.env.DEV ? 'http://localhost:5173' : '');
 
   useEffect(() => {
-    const handleResize = () => setIsDesktop(window.innerWidth > 900);
+    const handleResize = () => {
+      const desktop = window.innerWidth > 900;
+      setIsDesktop(desktop);
+      if (desktop) {
+        setIsSidebarOpen(false);
+      }
+    };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
@@ -64,7 +70,7 @@ export default function AdminLayout() {
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#F8FAFC' }}>
       {/* Sidebar Overlay on mobile */}
-      {isSidebarOpen && (
+      {isSidebarOpen && !isDesktop && (
         <div
           onClick={() => setIsSidebarOpen(false)}
           style={{
@@ -133,7 +139,9 @@ export default function AdminLayout() {
               <Link
                 key={idx}
                 to={item.path}
-                onClick={() => setIsSidebarOpen(false)}
+                onClick={() => {
+                  if (!isDesktop) setIsSidebarOpen(false);
+                }}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -162,28 +170,30 @@ export default function AdminLayout() {
         </nav>
 
         {/* View Storefront Link */}
-        {storefrontUrl && <div style={{ padding: '0 12px 10px' }}>
-          <a
-            href={storefrontUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px',
-              backgroundColor: 'rgba(0,0,0,0.25)',
-              color: '#F5E8C7',
-              padding: '8px',
-              borderRadius: '6px',
-              fontSize: '0.74rem',
-              fontWeight: 600,
-              textDecoration: 'none'
-            }}
-          >
-            <ExternalLink size={13} /> View Live Storefront
-          </a>
-        </div>}
+        {storefrontUrl && (
+          <div style={{ padding: '0 12px 10px' }}>
+            <a
+              href={storefrontUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px',
+                backgroundColor: 'rgba(0,0,0,0.25)',
+                color: '#F5E8C7',
+                padding: '8px',
+                borderRadius: '6px',
+                fontSize: '0.74rem',
+                fontWeight: 600,
+                textDecoration: 'none'
+              }}
+            >
+              <ExternalLink size={13} /> View Live Storefront
+            </a>
+          </div>
+        )}
 
         {/* Admin User Card & Logout */}
         <div style={{
@@ -199,7 +209,7 @@ export default function AdminLayout() {
               {admin?.full_name || 'Administrator'}
             </p>
             <p style={{ fontSize: '0.68rem', color: '#D4C9BC' }}>
-              +91 {admin?.mobile_number || '7976580806'}
+              {admin?.mobile_number ? `+91 ${admin.mobile_number}` : 'Admin User'}
             </p>
           </div>
           <button
@@ -227,15 +237,15 @@ export default function AdminLayout() {
         display: 'flex',
         flexDirection: 'column',
         minHeight: '100vh',
-        width: '100%',
+        width: isDesktop ? 'calc(100% - 260px)' : '100%',
         maxWidth: '100vw'
       }}>
-        {/* Top bar on Mobile */}
+        {/* Top bar on Mobile only */}
         <header style={{
           height: '56px',
           backgroundColor: '#FFFFFF',
           borderBottom: '1px solid #E2E8F0',
-          display: 'flex',
+          display: isDesktop ? 'none' : 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           padding: '0 16px',

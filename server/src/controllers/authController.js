@@ -223,7 +223,13 @@ exports.adminLogin = async (req, res, next) => {
       });
     }
 
-    const cleanMobile = mobile_number.replace(/\D/g, '').slice(-10);
+    const cleanMobile = String(mobile_number).replace(/\D/g, '').slice(-10);
+    if (cleanMobile.length !== 10) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide a valid 10-digit mobile number.'
+      });
+    }
 
     // 1. Check admin existence
     const admins = await db.query('SELECT * FROM admins WHERE mobile_number = ?', [cleanMobile]);
@@ -233,19 +239,19 @@ exports.adminLogin = async (req, res, next) => {
 
     const admin = admins[0];
 
-    // 2. Verify OTP cryptographically
-    const verifyResult = await otpService.verifyOtp(cleanMobile, otp);
+    // 2. Verify Password Hash using non-blocking async bcrypt before consuming OTP
+    const isPasswordValid = await bcrypt.compare(String(password), admin.password_hash);
+    if (!isPasswordValid) {
+      return res.status(401).json({ success: false, message: 'Unauthorized: Invalid administrator credentials. -password' });
+    }
+
+    // 3. Verify OTP cryptographically
+    const verifyResult = await otpService.verifyOtp(cleanMobile, String(otp));
     if (!verifyResult.success) {
       return res.status(401).json({ success: false, message: verifyResult.message || 'Invalid or expired OTP code.' });
     }
 
-    // 3. Verify Password Hash
-    const isPasswordValid = bcrypt.compareSync(password, admin.password_hash);
-    if (!isPasswordValid) {
-      return res.status(401).json({ success: false, message: 'Unauthorized: Invalid administrator credentials.' });
-    }
-
-    // Generate Admin JWT Token
+    // 4. Generate Admin JWT Token (24h expiry)
     const token = jwt.sign(
       { id: admin.id, mobile: admin.mobile_number, isAdmin: true },
       config.jwtSecret,
@@ -269,7 +275,7 @@ exports.adminLogin = async (req, res, next) => {
   }
 };
 
-// 2. Admin change password
+// 3. Admin change password
 exports.adminChangePassword = async (req, res, next) => {
   try {
     const adminId = req.admin.id;
@@ -279,7 +285,7 @@ exports.adminChangePassword = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Both current and new passwords are required' });
     }
 
-    if (new_password.length < 6) {
+    if (String(new_password).length < 6) {
       return res.status(400).json({ success: false, message: 'New password must be at least 6 characters long' });
     }
 
@@ -289,12 +295,12 @@ exports.adminChangePassword = async (req, res, next) => {
     }
 
     const admin = admins[0];
-    const isMatch = bcrypt.compareSync(current_password, admin.password_hash);
+    const isMatch = await bcrypt.compare(String(current_password), admin.password_hash);
     if (!isMatch) {
       return res.status(400).json({ success: false, message: 'Current password is incorrect' });
     }
 
-    const newHash = bcrypt.hashSync(new_password, 10);
+    const newHash = await bcrypt.hash(String(new_password), 10);
     await db.query('UPDATE admins SET password_hash = ? WHERE id = ?', [newHash, adminId]);
 
     await logAdminAction(adminId, 'PASSWORD_CHANGED', 'ADMIN', adminId);

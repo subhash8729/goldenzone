@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAdminAuth } from '../context/AdminAuthContext';
-import { adminAuthService } from '../services/api';
-import { Lock, Smartphone, KeyRound, ShieldAlert, CheckCircle2, Send } from 'lucide-react';
+import { adminAuthService, getErrorMessage } from '../services/api';
+import { Lock, Smartphone, KeyRound, ShieldAlert, CheckCircle2 } from 'lucide-react';
 
 export default function LoginPage() {
   const [mobile, setMobile] = useState('');
@@ -39,10 +39,11 @@ export default function LoginPage() {
     setOtpLoading(true);
     try {
       const res = await adminAuthService.sendOtp(cleanMobile);
-      setInfoMessage(res.data?.message || 'OTP sent successfully to admin phone via SMS.');
+      setInfoMessage(res.data?.message || 'OTP sent successfully to admin mobile via SMS.');
       setCountdown(60);
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to send OTP. Please try again.');
+      const msg = getErrorMessage(err, 'Failed to send OTP. Please check your mobile number.');
+      setError(msg);
     } finally {
       setOtpLoading(false);
     }
@@ -53,22 +54,35 @@ export default function LoginPage() {
     setError('');
     setInfoMessage('');
 
-    if (!mobile || !password || !otp) {
-      setError('Please fill in Mobile, Password, and the 6-digit OTP.');
+    const cleanMobile = mobile.replace(/\D/g, '').slice(-10);
+    if (cleanMobile.length !== 10) {
+      setError('Please enter a valid 10-digit admin mobile number.');
+      return;
+    }
+
+    if (!password) {
+      setError('Please enter your admin password.');
+      return;
+    }
+
+    const cleanOtp = otp.replace(/\D/g, '').trim();
+    if (!cleanOtp || cleanOtp.length !== 6) {
+      setError('Please enter the 6-digit security OTP sent to your phone.');
       return;
     }
 
     setLoading(true);
     try {
-      const res = await adminAuthService.login(mobile.trim(), password.trim(), otp.trim());
+      const res = await adminAuthService.login(cleanMobile, password, cleanOtp);
       if (res.data?.success && res.data?.token) {
         login(res.data.token, res.data.admin);
         navigate('/');
       } else {
-        setError(res.data?.message || 'Authentication failed');
+        setError(res.data?.message || 'Authentication failed. Please verify credentials.');
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'Invalid credentials or OTP. Please check.');
+      const msg = getErrorMessage(err, 'Invalid credentials or OTP. Please check.');
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -125,10 +139,11 @@ export default function LoginPage() {
               borderRadius: '8px',
               marginBottom: '16px',
               display: 'flex',
-              alignItems: 'center',
-              gap: '8px'
+              alignItems: 'flex-start',
+              gap: '8px',
+              lineHeight: 1.4
             }}>
-              <ShieldAlert size={16} />
+              <ShieldAlert size={16} style={{ flexShrink: 0, marginTop: '2px' }} />
               <span>{error}</span>
             </div>
           )}
@@ -146,7 +161,7 @@ export default function LoginPage() {
               alignItems: 'center',
               gap: '8px'
             }}>
-              <CheckCircle2 size={16} />
+              <CheckCircle2 size={16} style={{ flexShrink: 0 }} />
               <span>{infoMessage}</span>
             </div>
           )}
@@ -160,7 +175,7 @@ export default function LoginPage() {
                 required
                 value={mobile}
                 onChange={(e) => setMobile(e.target.value)}
-                placeholder="Enter 10-digit mobile"
+                placeholder="Enter 10-digit registered mobile"
                 className="form-input"
                 style={{ border: 'none', background: 'transparent', padding: '10px 0' }}
               />
@@ -199,8 +214,9 @@ export default function LoginPage() {
                     color: '#520612',
                     fontSize: '0.74rem',
                     fontWeight: 700,
-                    cursor: 'pointer',
-                    textDecoration: 'underline'
+                    cursor: otpLoading || !mobile ? 'not-allowed' : 'pointer',
+                    textDecoration: 'underline',
+                    opacity: otpLoading || !mobile ? 0.6 : 1
                   }}
                 >
                   {otpLoading ? 'Sending...' : 'Send OTP via SMS'}
@@ -232,7 +248,9 @@ export default function LoginPage() {
               padding: '12px',
               fontSize: '0.90rem',
               justifyContent: 'center',
-              borderRadius: '8px'
+              borderRadius: '8px',
+              opacity: loading ? 0.7 : 1,
+              cursor: loading ? 'not-allowed' : 'pointer'
             }}
           >
             {loading ? 'Authenticating...' : 'Sign In to Admin Portal'}

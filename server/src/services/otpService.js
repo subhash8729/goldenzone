@@ -65,6 +65,9 @@ class OtpService {
       }
     }
 
+    // Compute resend count across this active session
+    const currentResendCount = existingRows.length > 0 ? (existingRows[0].resend_count || 1) + 1 : 1;
+
     // Generate secure 6-digit random OTP
     const otp = this.generateSecureOtp();
     const otpHash = this.hashOtp(cleanMobile, otp);
@@ -77,39 +80,60 @@ class OtpService {
     const appName = config.appName || 'Golden Zone';
 
     if (!renflairKey) {
-      const err = new Error('SMS sign-in is temporarily unavailable. Please contact support.');
+      const err = new Error('SMS service is temporarily unconfigured. Please contact support.');
       err.status = 503;
       throw err;
     }
 
     try {
-        const requestUrl = new URL(renflairUrl);
-        requestUrl.searchParams.append('API', renflairKey);
-        requestUrl.searchParams.append('PHONE', cleanMobile);
-        requestUrl.searchParams.append('OTP', otp);
+      const requestUrl = new URL(renflairUrl);
+      requestUrl.searchParams.append('API', renflairKey);
+      requestUrl.searchParams.append('PHONE', cleanMobile);
+      requestUrl.searchParams.append('OTP', otp);
 
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 8000);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
 
-        const response = await fetch(requestUrl.toString(), {
-          method: 'GET',
-          signal: controller.signal,
-          headers: {
-            'User-Agent': `${appName}-Backend/1.0 (${appDomain})`
-          }
-        });
-        clearTimeout(timeoutId);
+      const response = await fetch(requestUrl.toString(), {
+        method: 'GET',
+        signal: controller.signal,
+        headers: {
+          'User-Agent': `${appName}-Backend/1.0 (${appDomain})`
+        }
+      });
+      clearTimeout(timeoutId);
 
-      await response.text();
+      const responseText = await response.text();
+      let isSuccess = response.ok;
+
       if (!response.ok) {
-        const err = new Error('SMS sign-in is temporarily unavailable. Please try again shortly.');
+        isSuccess = false;
+      } else {
+        try {
+          const parsed = JSON.parse(responseText);
+          if (parsed && (
+            (parsed.status && /fail|error/i.test(String(parsed.status))) ||
+            (parsed.type && /fail|error/i.test(String(parsed.type)))
+          )) {
+            isSuccess = false;
+          }
+        } catch {
+          if (/invalid|error|failed/i.test(responseText)) {
+            isSuccess = false;
+          }
+        }
+      }
+
+      if (!isSuccess) {
+        const err = new Error('SMS service temporarily unavailable. Please try again shortly.');
         err.status = 503;
         throw err;
       }
     } catch (smsErr) {
       if (smsErr.status) throw smsErr;
-      console.error('❌ [Renflair SMS Gateway Error]:', smsErr.name === 'AbortError' ? 'Request timed out after 8s' : smsErr.message);
-      const err = new Error('SMS sign-in is temporarily unavailable. Please try again shortly.');
+      // Never log the raw URL, API key or OTP secret!
+      console.error('❌ [Renflair SMS Gateway Error]:', smsErr.name === 'AbortError' ? 'Request timed out after 8s' : 'Network dispatch failed');
+      const err = new Error('SMS service temporarily unavailable. Please try again shortly.');
       err.status = 503;
       throw err;
     }
@@ -120,12 +144,12 @@ class OtpService {
       [cleanMobile]
     );
 
-    // Store new hashed OTP in database
+    // Store new hashed OTP in database with incremented resend count
     await db.query(
       `INSERT INTO otp_verifications (
         mobile_number, otp_hash, attempts, resend_count, last_sent_at, expires_at, is_verified
-      ) VALUES (?, ?, 0, 1, NOW(), ?, 0)`,
-      [cleanMobile, otpHash, expiresAt]
+      ) VALUES (?, ?, 0, ?, NOW(), ?, 0)`,
+      [cleanMobile, otpHash, currentResendCount, expiresAt]
     );
 
     return {
@@ -192,11 +216,12 @@ class OtpService {
     );
 
     if (!isMatch) {
-      // Increment failed attempts counter
+      // Increment failed attempts counter and invalidate if max reached
       const newAttempts = record.attempts + 1;
+      const isMaxReached = newAttempts >= 5;
       await db.query(
-        `UPDATE otp_verifications SET attempts = ? WHERE id = ?`,
-        [newAttempts, record.id]
+        `UPDATE otp_verifications SET attempts = ?, is_verified = ? WHERE id = ?`,
+        [newAttempts, isMaxReached ? 2 : 0, record.id]
       );
 
       const remaining = Math.max(0, 5 - newAttempts);
@@ -204,7 +229,7 @@ class OtpService {
         success: false,
         message: remaining > 0
           ? `Incorrect OTP. ${remaining} attempt${remaining > 1 ? 's' : ''} remaining.`
-          : 'Incorrect OTP. Maximum attempts reached. Please request a new code.'
+          : 'Incorrect OTP. Maximum attempts reached. This OTP has been invalidated.'
       };
     }
 

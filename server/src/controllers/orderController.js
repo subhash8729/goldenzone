@@ -618,43 +618,27 @@ exports.updateOrderStatus = async (req, res, next) => {
     }
 
     const currentOrder = orders[0];
+    const targetShipped = is_shipped !== undefined ? Boolean(is_shipped) : Boolean(currentOrder.is_shipped);
+    let targetDelivered = is_delivered !== undefined ? Boolean(is_delivered) : Boolean(currentOrder.is_delivered);
 
-    let newShipped = currentOrder.is_shipped;
-    let newDelivered = currentOrder.is_delivered;
-    let shippedAt = currentOrder.shipped_at;
-    let deliveredAt = currentOrder.delivered_at;
+    // If Shipped is unticked or false, Delivered must automatically become false
+    if (!targetShipped) {
+      targetDelivered = false;
+    }
 
-    // Rule: Delivered cannot be checked if Shipped is false
-    if (is_delivered && !is_shipped && !currentOrder.is_shipped) {
+    // Rule: Delivered cannot be explicitly set if Shipped is false
+    if (Boolean(is_delivered) && !targetShipped) {
       return res.status(400).json({
         success: false,
         message: 'Order must be marked as Shipped before it can be marked as Delivered.'
       });
     }
 
-    if (is_shipped !== undefined) {
-      const boolShipped = Boolean(is_shipped);
-      newShipped = boolShipped ? 1 : 0;
-      shippedAt = boolShipped ? (currentOrder.shipped_at || new Date()) : null;
+    const newShipped = targetShipped ? 1 : 0;
+    const newDelivered = targetDelivered ? 1 : 0;
 
-      // If Shipped is unticked, Delivered must also be unticked
-      if (!boolShipped) {
-        newDelivered = 0;
-        deliveredAt = null;
-      }
-    }
-
-    if (is_delivered !== undefined) {
-      if (!newShipped) {
-        return res.status(400).json({
-          success: false,
-          message: 'Cannot mark as Delivered while Shipped is unchecked.'
-        });
-      }
-      const boolDelivered = Boolean(is_delivered);
-      newDelivered = boolDelivered ? 1 : 0;
-      deliveredAt = boolDelivered ? (currentOrder.delivered_at || new Date()) : null;
-    }
+    const shippedAt = newShipped ? (currentOrder.shipped_at || new Date()) : null;
+    const deliveredAt = newDelivered ? (currentOrder.delivered_at || new Date()) : null;
 
     await db.query(
       `UPDATE orders

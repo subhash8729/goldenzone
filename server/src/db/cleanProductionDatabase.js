@@ -12,6 +12,7 @@ async function cleanProductionDatabase() {
       'order_items',
       'payments',
       'orders',
+      'order_drafts',
       'customers',
       'reviews',
       'enquiries',

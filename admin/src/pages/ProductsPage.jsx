@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { adminProductService, adminCategoryService } from '../services/api';
+import { adminProductService, adminCategoryService, getErrorMessage } from '../services/api';
 import {
   Plus,
   Search,
@@ -12,13 +12,16 @@ import {
   X,
   Star,
   Flame,
-  Sparkles
+  Sparkles,
+  RefreshCw,
+  AlertCircle
 } from 'lucide-react';
 
 export default function ProductsPage() {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   // Filters
   const [selectedCategory, setSelectedCategory] = useState('');
@@ -30,7 +33,7 @@ export default function ProductsPage() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
 
-  // Add Product Form State (supports 1 to 10 image URLs with live previews)
+  // Add Product Form State
   const [productName, setProductName] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [sku, setSku] = useState('');
@@ -43,12 +46,17 @@ export default function ProductsPage() {
   const [isOutOfStock, setIsOutOfStock] = useState(false);
   const [isActive, setIsActive] = useState(true);
   const [tags, setTags] = useState('');
-  const [imageUrls, setImageUrls] = useState(['']); // Array of up to 10 image URL strings
+  const [imageUrls, setImageUrls] = useState(['']);
   const [formError, setFormError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  // Edit Product Form State
+  const [editImageUrls, setEditImageUrls] = useState([]);
+  const [editFormError, setEditFormError] = useState('');
+
   const fetchProductsAndCategories = async () => {
     setLoading(true);
+    setError('');
     try {
       const [prodRes, catRes] = await Promise.all([
         adminProductService.getProducts({
@@ -61,13 +69,16 @@ export default function ProductsPage() {
         adminCategoryService.getCategories()
       ]);
 
-      setProducts(prodRes.data?.data || []);
-      setCategories(catRes.data?.data || []);
-      if (!categoryId && catRes.data?.data?.length > 0) {
-        setCategoryId(catRes.data.data[0].id.toString());
+      const prods = prodRes.data?.data || [];
+      const cats = catRes.data?.data || [];
+      setProducts(prods);
+      setCategories(cats);
+      if (!categoryId && cats.length > 0) {
+        setCategoryId(cats[0].id.toString());
       }
     } catch (err) {
       console.error('Failed to load products or categories:', err);
+      setError(getErrorMessage(err, 'Failed to load products catalogue.'));
     } finally {
       setLoading(false);
     }
@@ -82,7 +93,7 @@ export default function ProductsPage() {
     fetchProductsAndCategories();
   };
 
-  // Image inputs handling
+  // Add modal Image inputs handling
   const handleImageUrlChange = (index, value) => {
     const updated = [...imageUrls];
     updated[index] = value;
@@ -101,8 +112,37 @@ export default function ProductsPage() {
     }
   };
 
+  // Edit modal Image inputs handling
+  const handleEditImageUrlChange = (index, value) => {
+    const updated = [...editImageUrls];
+    updated[index] = value;
+    setEditImageUrls(updated);
+  };
+
+  const handleAddEditImageField = () => {
+    if (editImageUrls.length < 10) {
+      setEditImageUrls([...editImageUrls, '']);
+    }
+  };
+
+  const handleRemoveEditImageField = (index) => {
+    if (editImageUrls.length > 1) {
+      setEditImageUrls(editImageUrls.filter((_, i) => i !== index));
+    }
+  };
+
+  // Open Edit Modal
+  const openEditModal = (prod) => {
+    setEditingProduct({ ...prod });
+    const existingImgs = prod.images && Array.isArray(prod.images) && prod.images.length > 0
+      ? prod.images.map((img) => (typeof img === 'string' ? img : img.image_url))
+      : (prod.primary_image ? [prod.primary_image] : ['']);
+    setEditImageUrls(existingImgs);
+    setEditFormError('');
+  };
+
   // Reset Add Form
-  const resetForm = () => {
+  const resetAddForm = () => {
     setProductName('');
     setSku('');
     setDescription('');
@@ -125,7 +165,7 @@ export default function ProductsPage() {
     setFormError('');
 
     if (!productName.trim()) {
-      setFormError('Product name is required');
+      setFormError('Product name is required.');
       return;
     }
 
@@ -166,39 +206,42 @@ export default function ProductsPage() {
         images: validUrls
       });
 
-      resetForm();
+      resetAddForm();
       fetchProductsAndCategories();
     } catch (err) {
-      setFormError(err.response?.data?.message || 'Failed to create product.');
+      setFormError(getErrorMessage(err, 'Failed to create product.'));
     } finally {
       setSubmitting(false);
     }
   };
 
-  // Edit Product Submit (Excludes image modification as per requirement 11 & 28)
+  // Update Product Submit
   const handleUpdateProduct = async (e) => {
     e.preventDefault();
     if (!editingProduct) return;
+    setEditFormError('');
 
     const reg = parseFloat(editingProduct.regular_price);
     const disc = parseFloat(editingProduct.discounted_price);
 
     if (isNaN(reg) || reg <= 0 || isNaN(disc) || disc <= 0) {
-      alert('Please enter valid positive prices.');
+      setEditFormError('Please enter valid positive prices.');
       return;
     }
 
     if (disc > reg) {
-      alert('Discounted price cannot exceed regular price.');
+      setEditFormError('Discounted price cannot exceed regular price.');
       return;
     }
 
+    const validImgs = editImageUrls.map((u) => u.trim()).filter((u) => u.length > 0);
+
     setSubmitting(true);
     try {
-      await adminProductService.updateProduct(editingProduct.id, {
-        name: editingProduct.name,
-        category_id: editingProduct.category_id,
-        description: editingProduct.description,
+      const payload = {
+        name: editingProduct.name.trim(),
+        category_id: parseInt(editingProduct.category_id, 10),
+        description: editingProduct.description ? editingProduct.description.trim() : '',
         regular_price: reg,
         discounted_price: disc,
         is_recommended: editingProduct.is_recommended ? 1 : 0,
@@ -206,13 +249,19 @@ export default function ProductsPage() {
         is_new_arrival: editingProduct.is_new_arrival ? 1 : 0,
         is_out_of_stock: editingProduct.is_out_of_stock ? 1 : 0,
         is_active: editingProduct.is_active ? 1 : 0,
-        tags: editingProduct.tags
-      });
+        tags: editingProduct.tags ? editingProduct.tags.trim() : ''
+      };
+
+      if (validImgs.length > 0) {
+        payload.images = validImgs;
+      }
+
+      await adminProductService.updateProduct(editingProduct.id, payload);
 
       setEditingProduct(null);
       fetchProductsAndCategories();
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to update product');
+      setEditFormError(getErrorMessage(err, 'Failed to update product.'));
     } finally {
       setSubmitting(false);
     }
@@ -225,7 +274,7 @@ export default function ProductsPage() {
       await adminProductService.toggleFlag(prod.id, 'is_out_of_stock', nextVal);
       fetchProductsAndCategories();
     } catch (err) {
-      alert('Failed to update stock status');
+      alert(getErrorMessage(err, 'Failed to update stock status'));
     }
   };
 
@@ -236,7 +285,7 @@ export default function ProductsPage() {
       await adminProductService.toggleFlag(prod.id, 'is_recommended', nextVal);
       fetchProductsAndCategories();
     } catch (err) {
-      alert('Failed to update recommendation');
+      alert(getErrorMessage(err, 'Failed to update recommendation'));
     }
   };
 
@@ -247,7 +296,7 @@ export default function ProductsPage() {
         await adminProductService.deleteProduct(prod.id);
         fetchProductsAndCategories();
       } catch (err) {
-        alert('Failed to delete product');
+        alert(getErrorMessage(err, 'Failed to delete product'));
       }
     }
   };
@@ -273,6 +322,41 @@ export default function ProductsPage() {
           <Plus size={16} /> Add New Product
         </button>
       </div>
+
+      {error && (
+        <div style={{
+          backgroundColor: '#FEF2F2',
+          border: '1px solid #FCA5A5',
+          borderRadius: '8px',
+          padding: '12px 16px',
+          color: '#991B1B',
+          fontSize: '0.82rem',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: '16px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <AlertCircle size={16} />
+            <span>{error}</span>
+          </div>
+          <button
+            onClick={fetchProductsAndCategories}
+            style={{
+              backgroundColor: '#991B1B',
+              color: '#FFFFFF',
+              border: 'none',
+              padding: '4px 10px',
+              borderRadius: '4px',
+              fontSize: '0.74rem',
+              fontWeight: 600,
+              cursor: 'pointer'
+            }}
+          >
+            Retry
+          </button>
+        </div>
+      )}
 
       {/* Filters Bar */}
       <div style={{
@@ -362,6 +446,23 @@ export default function ProductsPage() {
           <button type="submit" className="btn-secondary" style={{ padding: '5px 10px', fontSize: '0.76rem' }}>
             Filter
           </button>
+          <button
+            type="button"
+            onClick={fetchProductsAndCategories}
+            title="Refresh Products"
+            style={{
+              background: '#F8FAFC',
+              border: '1px solid #CBD5E1',
+              borderRadius: '6px',
+              padding: '5px 8px',
+              cursor: 'pointer',
+              color: '#475569',
+              display: 'flex',
+              alignItems: 'center'
+            }}
+          >
+            <RefreshCw size={13} className={loading ? 'spin' : ''} />
+          </button>
         </form>
       </div>
 
@@ -375,11 +476,21 @@ export default function ProductsPage() {
       }}>
         {loading ? (
           <div style={{ textAlign: 'center', padding: '60px 0', color: '#64748B' }}>
-            <p>Loading products from database...</p>
+            <div style={{
+              width: '32px',
+              height: '32px',
+              border: '3px solid #E2E8F0',
+              borderTopColor: '#520612',
+              borderRadius: '50%',
+              animation: 'spin 0.8s linear infinite',
+              margin: '0 auto 12px'
+            }} />
+            <p style={{ fontSize: '0.86rem' }}>Loading products from database...</p>
           </div>
         ) : products.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '60px 20px', color: '#64748B' }}>
-            <p style={{ fontWeight: 600, fontSize: '0.90rem' }}>No products matching filters.</p>
+            <p style={{ fontWeight: 600, fontSize: '0.92rem', color: '#0F172A' }}>No products matching filters.</p>
+            <p style={{ fontSize: '0.78rem', marginTop: '4px' }}>Try adjusting your search query or category filter.</p>
           </div>
         ) : (
           <div style={{ overflowX: 'auto' }}>
@@ -404,6 +515,9 @@ export default function ProductsPage() {
                         src={prod.primary_image || 'https://pashupati.co/cdn/shop/files/B35A6888-45CE-4752-A4A2-7951A478EA61.jpg?v=1775994142&width=600'}
                         alt={prod.name}
                         style={{ width: '48px', height: '48px', objectFit: 'cover', borderRadius: '6px', border: '1px solid #E2E8F0' }}
+                        onError={(e) => {
+                          e.target.src = 'https://pashupati.co/cdn/shop/files/B35A6888-45CE-4752-A4A2-7951A478EA61.jpg?v=1775994142&width=600';
+                        }}
                       />
                     </td>
                     <td>
@@ -415,10 +529,10 @@ export default function ProductsPage() {
                     </td>
                     <td>
                       <div style={{ fontWeight: 700, color: '#520612', fontSize: '0.86rem' }}>
-                        ₹{prod.discounted_price?.toLocaleString('en-IN')}
+                        ₹{Number(prod.discounted_price || 0).toLocaleString('en-IN')}
                       </div>
                       <span style={{ fontSize: '0.72rem', color: '#94A3B8', textDecoration: 'line-through' }}>
-                        ₹{prod.regular_price?.toLocaleString('en-IN')}
+                        ₹{Number(prod.regular_price || 0).toLocaleString('en-IN')}
                       </span>
                     </td>
                     <td>
@@ -432,21 +546,26 @@ export default function ProductsPage() {
                     </td>
                     <td>
                       <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-                        {prod.is_bestseller && (
+                        {prod.is_bestseller ? (
                           <span style={{ backgroundColor: '#C5A059', color: '#1F1A17', fontSize: '0.65rem', fontWeight: 700, padding: '1px 5px', borderRadius: '3px' }}>
                             BEST
                           </span>
-                        )}
-                        {prod.is_recommended && (
+                        ) : null}
+                        {prod.is_recommended ? (
                           <span style={{ backgroundColor: '#520612', color: '#FFF', fontSize: '0.65rem', fontWeight: 700, padding: '1px 5px', borderRadius: '3px' }}>
                             REC
                           </span>
-                        )}
-                        {!prod.is_active && (
+                        ) : null}
+                        {prod.is_new_arrival ? (
+                          <span style={{ backgroundColor: '#DBEAFE', color: '#1E40AF', fontSize: '0.65rem', fontWeight: 700, padding: '1px 5px', borderRadius: '3px' }}>
+                            NEW
+                          </span>
+                        ) : null}
+                        {!prod.is_active ? (
                           <span style={{ backgroundColor: '#E2E8F0', color: '#475569', fontSize: '0.65rem', fontWeight: 700, padding: '1px 5px', borderRadius: '3px' }}>
                             INACTIVE
                           </span>
-                        )}
+                        ) : null}
                       </div>
                     </td>
                     <td>
@@ -469,7 +588,7 @@ export default function ProductsPage() {
                     <td>
                       <div style={{ display: 'flex', gap: '6px' }}>
                         <button
-                          onClick={() => setEditingProduct({ ...prod })}
+                          onClick={() => openEditModal(prod)}
                           title="Edit Product Details"
                           style={{
                             background: '#F1F5F9',
@@ -533,7 +652,7 @@ export default function ProductsPage() {
               <h3 style={{ fontFamily: '"Plus Jakarta Sans", system-ui, -apple-system, sans-serif', fontSize: '1.25rem', color: '#520612', fontWeight: 700 }}>
                 Add New 1 Gram Gold-Plated Piece
               </h3>
-              <button onClick={resetForm} style={{ background: 'none', border: 'none', color: '#64748B', cursor: 'pointer' }}>
+              <button onClick={resetAddForm} style={{ background: 'none', border: 'none', color: '#64748B', cursor: 'pointer' }}>
                 <X size={20} />
               </button>
             </div>
@@ -589,6 +708,7 @@ export default function ProductsPage() {
                   <input
                     type="number"
                     step="0.01"
+                    min="1"
                     required
                     value={regularPrice}
                     onChange={(e) => setRegularPrice(e.target.value)}
@@ -602,6 +722,7 @@ export default function ProductsPage() {
                   <input
                     type="number"
                     step="0.01"
+                    min="1"
                     required
                     value={discountedPrice}
                     onChange={(e) => setDiscountedPrice(e.target.value)}
@@ -699,7 +820,7 @@ export default function ProductsPage() {
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
-                <button type="button" onClick={resetForm} className="btn-secondary">
+                <button type="button" onClick={resetAddForm} className="btn-secondary">
                   Cancel
                 </button>
                 <button type="submit" disabled={submitting} className="btn-primary">
@@ -711,7 +832,7 @@ export default function ProductsPage() {
         </div>
       )}
 
-      {/* EDIT PRODUCT MODAL (Image change note strictly included) */}
+      {/* EDIT PRODUCT MODAL */}
       {editingProduct && (
         <div style={{
           position: 'fixed',
@@ -727,7 +848,7 @@ export default function ProductsPage() {
             backgroundColor: '#FFFFFF',
             borderRadius: '16px',
             width: '100%',
-            maxWidth: '560px',
+            maxWidth: '600px',
             maxHeight: '90vh',
             overflowY: 'auto',
             padding: '24px',
@@ -743,23 +864,15 @@ export default function ProductsPage() {
               </button>
             </div>
 
-            {/* Requirement 11 & 28 Notice */}
-            <div style={{
-              backgroundColor: '#EFF6FF',
-              border: '1px solid #BFDBFE',
-              color: '#1E40AF',
-              padding: '10px 12px',
-              borderRadius: '8px',
-              fontSize: '0.78rem',
-              marginBottom: '16px',
-              lineHeight: 1.4
-            }}>
-              💡 <strong>Note on Product Images:</strong> To change product images, delete/recreate the product.
-            </div>
+            {editFormError && (
+              <div style={{ backgroundColor: '#FEF2F2', border: '1px solid #FCA5A5', color: '#991B1B', padding: '8px 12px', borderRadius: '6px', fontSize: '0.80rem', marginBottom: '14px' }}>
+                {editFormError}
+              </div>
+            )}
 
             <form onSubmit={handleUpdateProduct} style={{ display: 'grid', gap: '12px' }}>
               <div>
-                <label className="form-label">Product Name</label>
+                <label className="form-label">Product Name *</label>
                 <input
                   type="text"
                   required
@@ -771,7 +884,7 @@ export default function ProductsPage() {
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                 <div>
-                  <label className="form-label">Category</label>
+                  <label className="form-label">Category *</label>
                   <select
                     value={editingProduct.category_id}
                     onChange={(e) => setEditingProduct({ ...editingProduct, category_id: e.target.value })}
@@ -797,10 +910,11 @@ export default function ProductsPage() {
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                 <div>
-                  <label className="form-label">Regular Price (₹)</label>
+                  <label className="form-label">Regular Price (₹) *</label>
                   <input
                     type="number"
                     step="0.01"
+                    min="1"
                     required
                     value={editingProduct.regular_price}
                     onChange={(e) => setEditingProduct({ ...editingProduct, regular_price: e.target.value })}
@@ -809,10 +923,11 @@ export default function ProductsPage() {
                 </div>
 
                 <div>
-                  <label className="form-label">Discounted Price (₹)</label>
+                  <label className="form-label">Discounted Price (₹) *</label>
                   <input
                     type="number"
                     step="0.01"
+                    min="1"
                     required
                     value={editingProduct.discounted_price}
                     onChange={(e) => setEditingProduct({ ...editingProduct, discounted_price: e.target.value })}
@@ -832,7 +947,56 @@ export default function ProductsPage() {
                 />
               </div>
 
-              {/* Toggles */}
+              {/* Images in edit modal */}
+              <div style={{ backgroundColor: '#F8FAFC', border: '1px solid #CBD5E1', borderRadius: '8px', padding: '12px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <label className="form-label" style={{ margin: 0 }}>
+                    Product Images (Optional to update)
+                  </label>
+                  {editImageUrls.length < 10 && (
+                    <button
+                      type="button"
+                      onClick={handleAddEditImageField}
+                      style={{ background: 'none', border: 'none', color: '#520612', fontSize: '0.74rem', fontWeight: 700, cursor: 'pointer' }}
+                    >
+                      + Add Image URL
+                    </button>
+                  )}
+                </div>
+
+                {editImageUrls.map((url, idx) => (
+                  <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                    <span style={{ fontSize: '0.72rem', color: '#64748B', width: '20px' }}>{idx + 1}.</span>
+                    <input
+                      type="url"
+                      value={url}
+                      onChange={(e) => handleEditImageUrlChange(idx, e.target.value)}
+                      placeholder="https://..."
+                      className="form-input"
+                      style={{ flex: 1, fontSize: '0.80rem' }}
+                    />
+                    {url && (
+                      <img
+                        src={url}
+                        alt="Preview"
+                        style={{ width: '32px', height: '32px', objectFit: 'cover', borderRadius: '4px', border: '1px solid #CBD5E1' }}
+                        onError={(e) => (e.target.style.display = 'none')}
+                      />
+                    )}
+                    {editImageUrls.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveEditImageField(idx)}
+                        style={{ background: 'none', border: 'none', color: '#991B1B', cursor: 'pointer' }}
+                      >
+                        <X size={16} />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* All Toggles (including is_new_arrival!) */}
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
                 <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', cursor: 'pointer' }}>
                   <input
@@ -857,6 +1021,14 @@ export default function ProductsPage() {
                     onChange={(e) => setEditingProduct({ ...editingProduct, is_bestseller: e.target.checked })}
                   />
                   Bestseller
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={Boolean(editingProduct.is_new_arrival)}
+                    onChange={(e) => setEditingProduct({ ...editingProduct, is_new_arrival: e.target.checked })}
+                  />
+                  New Arrival
                 </label>
                 <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', cursor: 'pointer' }}>
                   <input

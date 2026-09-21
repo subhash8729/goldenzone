@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { adminPaymentService, adminOrderService } from '../services/api';
+import { adminPaymentService, adminOrderService, getErrorMessage } from '../services/api';
 import {
   CreditCard,
   Search,
@@ -18,6 +18,7 @@ import {
 export default function PaymentsPage() {
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
 
@@ -28,6 +29,7 @@ export default function PaymentsPage() {
 
   const fetchPayments = async () => {
     setLoading(true);
+    setError('');
     try {
       const res = await adminPaymentService.getPayments({
         search: search.trim() || undefined,
@@ -36,6 +38,7 @@ export default function PaymentsPage() {
       setPayments(res.data?.data || []);
     } catch (err) {
       console.error('Error loading payments:', err);
+      setError(getErrorMessage(err, 'Failed to load payments from database.'));
     } finally {
       setLoading(false);
     }
@@ -124,8 +127,40 @@ export default function PaymentsPage() {
               Search
             </button>
           </form>
+
+          <button
+            onClick={fetchPayments}
+            title="Refresh Transactions"
+            style={{
+              background: '#FFFFFF',
+              border: '1px solid #CBD5E1',
+              borderRadius: '6px',
+              padding: '6px 10px',
+              cursor: 'pointer',
+              color: '#475569',
+              display: 'flex',
+              alignItems: 'center'
+            }}
+          >
+            <RefreshCw size={14} className={loading ? 'spin' : ''} />
+          </button>
         </div>
       </div>
+
+      {error && (
+        <div style={{ backgroundColor: '#FEF2F2', border: '1px solid #FCA5A5', color: '#991B1B', padding: '12px 16px', borderRadius: '8px', marginBottom: '16px', fontSize: '0.82rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <AlertCircle size={16} />
+            <span>{error}</span>
+          </div>
+          <button
+            onClick={fetchPayments}
+            style={{ backgroundColor: '#991B1B', color: '#FFF', border: 'none', padding: '4px 10px', borderRadius: '4px', fontSize: '0.74rem', cursor: 'pointer' }}
+          >
+            Retry
+          </button>
+        </div>
+      )}
 
       {/* Transactions Table */}
       <div style={{ backgroundColor: '#FFFFFF', borderRadius: '12px', border: '1px solid #E2E8F0', overflowX: 'auto', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
@@ -149,8 +184,17 @@ export default function PaymentsPage() {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={12} style={{ textAlign: 'center', padding: '36px', color: '#64748B' }}>
-                  Loading real transactions...
+                <td colSpan={12} style={{ textAlign: 'center', padding: '40px', color: '#64748B' }}>
+                  <div style={{
+                    width: '32px',
+                    height: '32px',
+                    border: '3px solid #E2E8F0',
+                    borderTopColor: '#520612',
+                    borderRadius: '50%',
+                    animation: 'spin 0.8s linear infinite',
+                    margin: '0 auto 12px'
+                  }} />
+                  <p style={{ fontSize: '0.86rem' }}>Loading real transactions from database...</p>
                 </td>
               </tr>
             ) : payments.length === 0 ? (
@@ -158,10 +202,10 @@ export default function PaymentsPage() {
                 <td colSpan={12} style={{ textAlign: 'center', padding: '48px 16px', color: '#64748B' }}>
                   <ShieldCheck size={36} color="#C5A059" style={{ margin: '0 auto 8px' }} />
                   <p style={{ fontWeight: 600, color: '#1E293B', fontSize: '0.92rem' }}>
-                    No Real Razorpay Transactions Recorded
+                    No Razorpay Transactions Recorded
                   </p>
                   <p style={{ fontSize: '0.78rem', marginTop: '4px' }}>
-                    Live Razorpay payments made via website checkout or verified via webhooks will appear here in real-time.
+                    Payments made via website checkout or verified via webhooks will appear here in real-time.
                   </p>
                 </td>
               </tr>
@@ -318,7 +362,7 @@ export default function PaymentsPage() {
                     </td>
 
                     <td style={{ fontSize: '0.72rem', color: '#64748B', whiteSpace: 'nowrap' }}>
-                      {p.formatted_date}
+                      {p.formatted_date || (p.created_at ? new Date(p.created_at).toLocaleString('en-IN') : 'Recent')}
                     </td>
 
                     <td>
@@ -401,175 +445,98 @@ export default function PaymentsPage() {
               </button>
             </div>
 
-            {loadingOrderModal ? (
-              <div style={{ padding: '40px', textAlign: 'center', color: '#64748B' }}>
-                Loading order details...
-              </div>
-            ) : orderModalData ? (
-              <div style={{ padding: '20px' }}>
-                {/* Status Strip */}
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))',
-                  gap: '10px',
-                  backgroundColor: '#F8FAFC',
-                  padding: '12px 14px',
-                  borderRadius: '10px',
-                  border: '1px solid #E2E8F0',
-                  marginBottom: '16px'
-                }}>
-                  <div>
-                    <span style={{ fontSize: '0.68rem', color: '#64748B', display: 'block' }}>Payment Mode</span>
-                    <span style={{
-                      fontWeight: 700,
-                      fontSize: '0.80rem',
-                      color: orderModalData.payment_mode === 'COD' ? '#92400E' : '#166534'
-                    }}>
-                      {orderModalData.payment_mode || 'ONLINE'}
-                    </span>
-                  </div>
-                  <div>
-                    <span style={{ fontSize: '0.68rem', color: '#64748B', display: 'block' }}>Payment Status</span>
-                    <span style={{
-                      fontWeight: 700,
-                      fontSize: '0.80rem',
-                      color: orderModalData.payment_status === 'PAID' ? '#166534' : '#92400E'
-                    }}>
-                      {orderModalData.payment_status}
-                    </span>
-                  </div>
-                  <div>
-                    <span style={{ fontSize: '0.68rem', color: '#64748B', display: 'block' }}>Total Amount</span>
-                    <span style={{ fontWeight: 700, fontSize: '0.86rem', color: '#520612' }}>
-                      ₹{orderModalData.total_amount?.toLocaleString('en-IN')}
-                    </span>
-                  </div>
-                  {orderModalData.payment_mode === 'COD' && (
-                    <>
+            {/* Modal Body */}
+            <div style={{ padding: '20px' }}>
+              {loadingOrderModal ? (
+                <div style={{ textAlign: 'center', padding: '40px 0', color: '#64748B' }}>
+                  <p>Loading linked order information...</p>
+                </div>
+              ) : !orderModalData ? (
+                <p style={{ color: '#EF4444', fontSize: '0.84rem' }}>Could not load order details.</p>
+              ) : (
+                <>
+                  {/* Order Overview & Payment Info */}
+                  <div style={{
+                    backgroundColor: '#F8FAFC',
+                    borderRadius: '8px',
+                    padding: '14px',
+                    border: '1px solid #E2E8F0',
+                    marginBottom: '16px',
+                    fontSize: '0.80rem'
+                  }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                       <div>
-                        <span style={{ fontSize: '0.68rem', color: '#64748B', display: 'block' }}>Advance Paid</span>
-                        <span style={{ fontWeight: 700, fontSize: '0.86rem', color: '#166534' }}>
-                          ₹{Number(orderModalData.advance_amount || 0).toLocaleString('en-IN')}
-                        </span>
+                        <span style={{ color: '#64748B', display: 'block', fontSize: '0.72rem' }}>CUSTOMER</span>
+                        <strong style={{ color: '#0F172A' }}>{orderModalData.full_name}</strong>
+                        <p style={{ color: '#475569' }}>+91 {orderModalData.primary_mobile}</p>
                       </div>
                       <div>
-                        <span style={{ fontSize: '0.68rem', color: '#64748B', display: 'block' }}>COD Due</span>
-                        <span style={{ fontWeight: 700, fontSize: '0.86rem', color: '#B45309' }}>
-                          ₹{Number(orderModalData.remaining_cod_amount || 0).toLocaleString('en-IN')}
+                        <span style={{ color: '#64748B', display: 'block', fontSize: '0.72rem' }}>PAYMENT STATUS</span>
+                        <span style={{
+                          fontWeight: 700,
+                          color: orderModalData.payment_status === 'PAID' ? '#16A34A' : '#DC2626'
+                        }}>
+                          {orderModalData.payment_status}
                         </span>
+                        <p style={{ color: '#64748B', fontSize: '0.72rem' }}>
+                          Mode: {orderModalData.payment_mode === 'COD' ? 'Cash on Delivery (₹200 Adv)' : 'Online Prepaid'}
+                        </p>
                       </div>
-                    </>
-                  )}
-                  <div>
-                    <span style={{ fontSize: '0.68rem', color: '#64748B', display: 'block' }}>Shipping Status</span>
-                    <span style={{ fontWeight: 600, fontSize: '0.80rem', color: orderModalData.is_shipped ? '#166534' : '#64748B' }}>
-                      {orderModalData.is_shipped ? 'SHIPPED' : 'PENDING'}
-                    </span>
+                    </div>
+
+                    <div style={{ marginTop: '12px', borderTop: '1px solid #E2E8F0', paddingTop: '10px' }}>
+                      <span style={{ color: '#64748B', display: 'block', fontSize: '0.72rem' }}>DELIVERY DESTINATION</span>
+                      <p style={{ color: '#1E293B', marginTop: '2px' }}>{orderModalData.address}</p>
+                      <p style={{ color: '#64748B', fontSize: '0.74rem' }}>
+                        {orderModalData.city || orderModalData.village}, {orderModalData.district}, {orderModalData.state} - {orderModalData.pincode}
+                      </p>
+                    </div>
                   </div>
-                </div>
 
-                {/* Customer & Address */}
-                <div style={{ marginBottom: '16px' }}>
-                  <h4 style={{ fontSize: '0.82rem', fontWeight: 700, color: '#1E293B', marginBottom: '6px' }}>
-                    Customer & Delivery Address
+                  {/* Order Items */}
+                  <h4 style={{ fontSize: '0.86rem', fontWeight: 700, color: '#0F172A', marginBottom: '10px' }}>
+                    Purchased Jewellery Items ({orderModalData.items?.length || 0})
                   </h4>
-                  <p style={{ fontSize: '0.82rem', fontWeight: 600, color: '#0F172A' }}>
-                    {orderModalData.full_name} ({orderModalData.primary_mobile})
-                  </p>
-                  <p style={{ fontSize: '0.78rem', color: '#475569', marginTop: '2px' }}>
-                    {orderModalData.address}, {orderModalData.district}, {orderModalData.state} - {orderModalData.pincode}
-                  </p>
-                  {orderModalData.maps_url && (
-                    <a
-                      href={orderModalData.maps_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{
-                        fontSize: '0.74rem',
-                        color: '#520612',
-                        fontWeight: 600,
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                        marginTop: '4px'
-                      }}
-                    >
-                      <MapPin size={12} /> View Customer Pin on Google Maps
-                    </a>
-                  )}
-                </div>
-
-                {/* Items */}
-                <div style={{ marginBottom: '16px' }}>
-                  <h4 style={{ fontSize: '0.82rem', fontWeight: 700, color: '#1E293B', marginBottom: '8px' }}>
-                    Ordered Jewellery Items ({orderModalData.items?.length || 0})
-                  </h4>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    {orderModalData.items?.map((item) => (
-                      <div
-                        key={item.id}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          padding: '8px 10px',
-                          backgroundColor: '#FAF7F2',
-                          borderRadius: '8px',
-                          border: '1px solid #E8E2D9'
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                          {item.product_image && (
-                            <img
-                              src={item.product_image}
-                              alt={item.product_name}
-                              style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '6px' }}
-                            />
-                          )}
-                          <div>
-                            <span style={{ fontSize: '0.80rem', fontWeight: 600, color: '#1F1A17', display: 'block' }}>
-                              {item.product_name}
-                            </span>
-                            <span style={{ fontSize: '0.70rem', color: '#8E857C' }}>
-                              SKU: {item.product_sku} | Qty: {item.quantity}
-                            </span>
-                          </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '18px' }}>
+                    {orderModalData.items?.map((it) => (
+                      <div key={it.id} style={{ display: 'flex', gap: '10px', alignItems: 'center', padding: '8px', border: '1px solid #E2E8F0', borderRadius: '6px' }}>
+                        <img
+                          src={it.product_image || 'https://pashupati.co/cdn/shop/files/B35A6888-45CE-4752-A4A2-7951A478EA61.jpg?v=1775994142&width=600'}
+                          alt={it.product_name}
+                          style={{ width: '42px', height: '42px', objectFit: 'cover', borderRadius: '4px' }}
+                        />
+                        <div style={{ flex: 1 }}>
+                          <p style={{ fontSize: '0.80rem', fontWeight: 600, color: '#0F172A' }}>{it.product_name}</p>
+                          <span style={{ fontSize: '0.70rem', color: '#64748B' }}>Qty: {it.quantity}</span>
                         </div>
-                        <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#520612' }}>
-                          ₹{item.subtotal_price?.toLocaleString('en-IN')}
-                        </span>
+                        <div style={{ fontWeight: 700, color: '#520612', fontSize: '0.84rem' }}>
+                          ₹{Number(it.subtotal_price || 0).toLocaleString('en-IN')}
+                        </div>
                       </div>
                     ))}
                   </div>
-                </div>
 
-                {/* Razorpay Gateway Logs */}
-                {orderModalData.payments && orderModalData.payments.length > 0 && (
-                  <div>
-                    <h4 style={{ fontSize: '0.82rem', fontWeight: 700, color: '#1E293B', marginBottom: '6px' }}>
-                      Razorpay Gateway Details
-                    </h4>
-                    {orderModalData.payments.map((pm) => (
-                      <div
-                        key={pm.id}
-                        style={{
-                          fontSize: '0.74rem',
-                          backgroundColor: '#F8FAFC',
-                          padding: '8px 12px',
-                          borderRadius: '6px',
-                          border: '1px solid #E2E8F0',
-                          fontFamily: 'monospace'
-                        }}
-                      >
-                        <div>Payment ID: {pm.razorpay_payment_id || pm.transaction_id || 'N/A'}</div>
-                        <div>Order ID: {pm.razorpay_order_id || 'N/A'}</div>
-                        <div>Status: {pm.payment_status} | Method: {pm.payment_method}</div>
-                      </div>
-                    ))}
+                  {/* Summary Footer */}
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    borderTop: '1px solid #E2E8F0',
+                    paddingTop: '14px'
+                  }}>
+                    <div>
+                      <span style={{ fontSize: '0.78rem', color: '#64748B' }}>Grand Total:</span>
+                      <strong style={{ fontSize: '1.15rem', color: '#520612', marginLeft: '6px' }}>
+                        ₹{Number(orderModalData.total_amount || 0).toLocaleString('en-IN')}
+                      </strong>
+                    </div>
+                    <button onClick={closeOrderModal} className="btn-secondary">
+                      Close
+                    </button>
                   </div>
-                )}
-              </div>
-            ) : null}
+                </>
+              )}
+            </div>
           </div>
         </div>
       )}

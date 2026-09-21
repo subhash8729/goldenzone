@@ -12,10 +12,14 @@ USE `kalyani_jewellers`;
 -- Drop existing tables in reverse dependency order if resetting
 DROP TABLE IF EXISTS `admin_audit_logs`;
 DROP TABLE IF EXISTS `admin_notes`;
+DROP TABLE IF EXISTS `enquiries`;
 DROP TABLE IF EXISTS `reviews`;
 DROP TABLE IF EXISTS `payments`;
 DROP TABLE IF EXISTS `order_items`;
 DROP TABLE IF EXISTS `orders`;
+DROP TABLE IF EXISTS `order_drafts`;
+DROP TABLE IF EXISTS `otp_verifications`;
+DROP TABLE IF EXISTS `webhook_events`;
 DROP TABLE IF EXISTS `product_images`;
 DROP TABLE IF EXISTS `products`;
 DROP TABLE IF EXISTS `categories`;
@@ -313,3 +317,19 @@ CREATE TABLE `admin_audit_logs` (
   INDEX `idx_audit_action` (`action`),
   INDEX `idx_audit_created` (`created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 13. Customer Enquiries Table
+CREATE TABLE IF NOT EXISTS `enquiries` (
+  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `name` VARCHAR(120) NOT NULL,
+  `mobile_number` VARCHAR(20) NOT NULL,
+  `email` VARCHAR(120) DEFAULT NULL,
+  `subject` VARCHAR(150) DEFAULT 'General Enquiry',
+  `message` TEXT NOT NULL,
+  `status` VARCHAR(20) NOT NULL DEFAULT 'NEW',
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  INDEX `idx_enquiry_status` (`status`),
+  INDEX `idx_enquiry_created` (`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+

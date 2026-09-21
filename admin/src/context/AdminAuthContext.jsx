@@ -24,7 +24,12 @@ export const AdminAuthProvider = ({ children }) => {
               localStorage.setItem('goldenzone_admin_user', JSON.stringify(res.data.admin));
             }
           })
-          .catch(() => logout())
+          .catch((err) => {
+            // Only force logout if the token was rejected by the server
+            if (err.response?.status === 401 || err.response?.status === 403) {
+              logout();
+            }
+          })
           .finally(() => setLoading(false));
       } catch (e) {
         logout();

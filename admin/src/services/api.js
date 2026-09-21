@@ -1,6 +1,23 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+// Normalize API base URL: ensure it handles with or without trailing slashes and /api suffix
+function getBaseUrl() {
+  let url = import.meta.env.VITE_API_URL;
+  if (!url) {
+    return '/api';
+  }
+  url = url.trim();
+  if (url.endsWith('/')) {
+    url = url.slice(0, -1);
+  }
+  // If user passed e.g. http://localhost:5000 or https://goldenzone.in without /api
+  if (url.startsWith('http') && !url.endsWith('/api')) {
+    url = `${url}/api`;
+  }
+  return url;
+}
+
+const API_BASE_URL = getBaseUrl();
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -10,7 +27,7 @@ const api = axios.create({
   }
 });
 
-// Request interceptor: Attach Admin token
+// Request interceptor: Attach Admin JWT token
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('goldenzone_admin_token');
@@ -22,20 +39,39 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response interceptor
+// Response interceptor: Handle expired/invalid admin session
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response && error.response.status === 401 && localStorage.getItem('goldenzone_admin_token')) {
-      localStorage.removeItem('goldenzone_admin_token');
-      localStorage.removeItem('goldenzone_admin_user');
-      if (window.location.pathname !== '/login') {
-        window.location.assign('/login');
+    const status = error.response?.status;
+    const hasToken = !!localStorage.getItem('goldenzone_admin_token');
+
+    // If 401 or 403 on protected admin calls, clear token and redirect to login
+    if ((status === 401 || status === 403) && hasToken) {
+      // Avoid redirect loops if the failure was specifically from the login endpoint
+      const isLoginEndpoint = error.config?.url?.includes('/auth/admin/login') || error.config?.url?.includes('/auth/admin/send-otp');
+      if (!isLoginEndpoint) {
+        localStorage.removeItem('goldenzone_admin_token');
+        localStorage.removeItem('goldenzone_admin_user');
+        if (window.location.pathname !== '/login') {
+          window.location.assign('/login');
+        }
       }
     }
     return Promise.reject(error);
   }
 );
+
+// Helper to reliably extract error message from API errors
+export function getErrorMessage(error, defaultMsg = 'An unexpected error occurred. Please try again.') {
+  if (!error) return defaultMsg;
+  if (typeof error === 'string') return error;
+  if (error.response?.data?.message) return error.response.data.message;
+  if (error.response?.data?.error) return error.response.data.error;
+  if (error.message === 'Network Error') return 'Unable to connect to the backend server. Please check your connection.';
+  if (error.code === 'ECONNABORTED') return 'Server request timed out. Please try again.';
+  return error.message || defaultMsg;
+}
 
 export const adminAuthService = {
   sendOtp: (mobile_number) =>
@@ -86,7 +122,8 @@ export const adminPaymentService = {
 
 export const adminSettingService = {
   getSettings: () => api.get('/settings'),
-  updateSettings: (settings) => api.put('/settings', { settings })
+  updateSettings: (settings) => api.put('/settings', { settings }),
+  getEnquiries: () => api.get('/settings/enquiries')
 };
 
 export const adminReviewService = {

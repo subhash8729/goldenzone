@@ -4,14 +4,16 @@ const paymentController = require('../src/controllers/paymentController');
 const razorpayService = require('../src/services/razorpayService');
 const crypto = require('crypto');
 
+let testUser = { id: 1, mobile_number: '7976580896' };
+
 // Mock Express req/res
-function mockReqRes({ body = {}, params = {}, headers = {}, rawBody = null, user = { id: 2, mobile_number: '7976580896' } }) {
+function mockReqRes({ body = {}, params = {}, headers = {}, rawBody = null, user = null }) {
   const req = {
     body,
     params,
     headers,
     rawBody,
-    user,
+    user: user || testUser,
     get: (h) => headers[h.toLowerCase()]
   };
 
@@ -50,6 +52,18 @@ async function runSecurityTests() {
   console.log('=== RUNNING SECURITY & ORDER FLOW INTEGRATION TESTS ===\n');
 
   try {
+    // Ensure test customer exists in DB
+    const existingCust = await query("SELECT id, mobile_number FROM customers WHERE mobile_number = '7976580896'");
+    if (existingCust.length > 0) {
+      testUser = existingCust[0];
+    } else {
+      const ins = await query(
+        `INSERT INTO customers (mobile_number, full_name, address, state, district, pincode)
+         VALUES ('7976580896', 'Security Tester', '123 Test Lane', 'Rajasthan', 'Udaipur', '313001')`
+      );
+      testUser = { id: ins.insertId, mobile_number: '7976580896' };
+    }
+
     // Get an active product from DB
     const [product] = await query('SELECT * FROM products WHERE is_active = 1 AND is_out_of_stock = 0 LIMIT 1');
     if (!product) throw new Error('No active in-stock product found for testing.');
@@ -155,7 +169,7 @@ async function runSecurityTests() {
     console.log(`Verification status: ${getVerifyStatus()}, response: ${getVerifyData()?.message}`);
 
     // Verify DB order state is now PAID
-    const [paidOrder] = await query('SELECT payment_status, total_amount FROM orders WHERE order_number = ?', [createdOrder.orderNumber]);
+    const [paidOrder] = await query('SELECT id, payment_status, total_amount FROM orders WHERE order_number = ?', [createdOrder.orderNumber]);
     console.log(`Order status in DB: ${paidOrder.payment_status}`);
     if (paidOrder.payment_status === 'PAID') {
       console.log('✓ PASS: Order marked PAID after payment verification.');
@@ -164,7 +178,7 @@ async function runSecurityTests() {
     }
 
     // Check payment record
-    const [paymentRecord] = await query('SELECT * FROM payments WHERE order_id = ?', [createdOrder.orderId]);
+    const [paymentRecord] = await query('SELECT * FROM payments WHERE order_id = ?', [paidOrder.id]);
     console.log(`Payment record created: Razorpay ID = ${paymentRecord.razorpay_payment_id}, Status = ${paymentRecord.payment_status}`);
     if (paymentRecord.payment_status === 'PAID') {
       console.log('✓ PASS: Payment successfully recorded in DB.');
@@ -186,8 +200,8 @@ async function runSecurityTests() {
     console.log(`Duplicate verification status: ${getDupStatus()}, response: ${getDupData()?.message}`);
     
     // Check how many payment records exist for this order (should still be 1, never duplicated)
-    const [paymentsCount] = await query('SELECT COUNT(*) as count FROM payments WHERE order_id = ?', [createdOrder.orderId]);
-    console.log(`Payments count for order ${createdOrder.orderId}: ${paymentsCount.count}`);
+    const [paymentsCount] = await query('SELECT COUNT(*) as count FROM payments WHERE order_id = ?', [paidOrder.id]);
+    console.log(`Payments count for order ${paidOrder.id}: ${paymentsCount.count}`);
     if (paymentsCount.count === 1) {
       console.log('✓ PASS: Duplicate verification processed idempotently without creating duplicate payment records.');
     } else {
@@ -214,7 +228,6 @@ async function runSecurityTests() {
     // Report failure
     const { req: reportFailReq, res: reportFailRes, next: reportFailNext, getStatus: getFailStatus, getData: getFailData } = mockReqRes({
       body: {
-        order_id: failOrder.orderId,
         order_number: failOrder.orderNumber,
         razorpay_order_id: failOrder.razorpayOrderId,
         razorpay_payment_id: 'pay_failed_123',
@@ -227,10 +240,10 @@ async function runSecurityTests() {
     await paymentController.handlePaymentFailed(reportFailReq, reportFailRes, reportFailNext);
     console.log(`Report fail status: ${getFailStatus()}, message: ${getFailData()?.message}`);
 
-    const [failedPaymentInDb] = await query('SELECT payment_status FROM payments WHERE order_id = ?', [failOrder.orderId]);
-    console.log(`Failed payment status in DB: ${failedPaymentInDb?.payment_status}`);
-    if (failedPaymentInDb?.payment_status === 'FAILED') {
-      console.log('✓ PASS: Payment correctly marked FAILED with reason recorded.');
+    const [failedDraftInDb] = await query('SELECT status FROM order_drafts WHERE razorpay_order_id = ?', [failOrder.razorpayOrderId]);
+    console.log(`Failed draft status in DB: ${failedDraftInDb?.status}`);
+    if (failedDraftInDb?.status === 'CANCELLED' || failedDraftInDb?.status === 'FAILED') {
+      console.log('✓ PASS: Checkout draft correctly marked FAILED/CANCELLED without creating confirmed order.');
     }
 
     // TEST 6: Cash on Delivery (COD) ₹200 Advance Calculation
@@ -271,9 +284,9 @@ async function runSecurityTests() {
       throw new Error(`COD calculation failed! Advance: ${codOrder.advanceAmount}, Remaining: ${codOrder.remainingCodAmount}`);
     }
 
-    // Verify DB stored correctly
-    const [dbCodOrder] = await query('SELECT payment_mode, advance_amount, remaining_cod_amount, payment_status FROM orders WHERE id = ?', [codOrder.orderId]);
-    if (dbCodOrder.payment_mode === 'COD' && Number(dbCodOrder.advance_amount) === expectedAdvance) {
+    // Verify DB stored correctly in order_drafts
+    const [dbCodDraft] = await query('SELECT payment_mode, advance_amount, remaining_cod_amount, status FROM order_drafts WHERE razorpay_order_id = ?', [codOrder.razorpayOrderId]);
+    if (dbCodDraft.payment_mode === 'COD' && Number(dbCodDraft.advance_amount) === expectedAdvance) {
       console.log('✓ PASS: COD details verified in database schema.');
     } else {
       throw new Error('Database COD fields mismatch!');
@@ -355,11 +368,11 @@ async function runSecurityTests() {
       throw new Error('Security flaw: Demo OTP 987654 was accepted!');
     }
 
-    // Clean up test orders created during this test
     console.log('\n[Cleanup] Cleaning up test records...');
-    await query('DELETE FROM payments WHERE order_id IN (?, ?, ?)', [createdOrder.orderId, failOrder.orderId, codOrder.orderId]);
-    await query('DELETE FROM order_items WHERE order_id IN (?, ?, ?)', [createdOrder.orderId, failOrder.orderId, codOrder.orderId]);
-    await query('DELETE FROM orders WHERE id IN (?, ?, ?)', [createdOrder.orderId, failOrder.orderId, codOrder.orderId]);
+    await query('DELETE FROM payments WHERE order_id = ?', [paidOrder.id]);
+    await query('DELETE FROM order_items WHERE order_id = ?', [paidOrder.id]);
+    await query('DELETE FROM orders WHERE id = ?', [paidOrder.id]);
+    await query('DELETE FROM order_drafts WHERE razorpay_order_id IN (?, ?, ?)', [createdOrder.razorpayOrderId, failOrder.razorpayOrderId, codOrder.razorpayOrderId]);
     await query('DELETE FROM webhook_events WHERE event_id = ?', [testEventId]);
     await query('DELETE FROM otp_verifications WHERE mobile_number = ?', [testMobile]);
     console.log('✓ Test records cleaned up.');

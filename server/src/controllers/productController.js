@@ -464,7 +464,7 @@ exports.createProduct = async (req, res, next) => {
   }
 };
 
-// 3. Admin: Update product details (excluding image reordering/editing as specified)
+// 3. Admin: Update product details
 exports.updateProduct = async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -479,7 +479,8 @@ exports.updateProduct = async (req, res, next) => {
       is_new_arrival,
       is_out_of_stock,
       is_active,
-      tags
+      tags,
+      images
     } = req.body;
 
     const existing = await db.query('SELECT * FROM products WHERE id = ? AND deleted_at IS NULL', [id]);
@@ -487,14 +488,14 @@ exports.updateProduct = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Product not found' });
     }
 
-    const regPrice = parseFloat(regular_price);
-    const discPrice = parseFloat(discounted_price);
+    const current = existing[0];
+    const regPrice = parseFloat(regular_price !== undefined ? regular_price : current.regular_price);
+    const discPrice = parseFloat(discounted_price !== undefined ? discounted_price : current.discounted_price);
 
-    if (!name || !name.trim()) {
-      return res.status(400).json({ success: false, message: 'Product name is required' });
-    }
+    const updatedName = (name && name.trim()) ? name.trim() : current.name;
+    const targetCategoryId = category_id !== undefined ? parseInt(category_id, 10) : current.category_id;
 
-    const categories = await db.query('SELECT id FROM categories WHERE id = ?', [category_id]);
+    const categories = await db.query('SELECT id FROM categories WHERE id = ?', [targetCategoryId]);
     if (categories.length === 0) {
       return res.status(400).json({ success: false, message: 'Invalid category selected' });
     }
@@ -507,42 +508,70 @@ exports.updateProduct = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Discounted price cannot be greater than regular price' });
     }
 
-    await db.query(
-      `UPDATE products
-       SET name = ?,
-           category_id = ?,
-           description = ?,
-           regular_price = ?,
-           discounted_price = ?,
-           is_recommended = ?,
-           is_bestseller = ?,
-           is_new_arrival = ?,
-           is_out_of_stock = ?,
-           is_active = ?,
-           tags = ?
-       WHERE id = ?`,
-      [
-        name.trim(),
-        category_id,
-        description || '',
-        regPrice,
-        discPrice,
-        is_recommended ? 1 : 0,
-        is_bestseller ? 1 : 0,
-        is_new_arrival ? 1 : 0,
-        is_out_of_stock ? 1 : 0,
-        is_active ? 1 : 0,
-        tags || '',
-        id
-      ]
-    );
+    // Preserve existing boolean flags if omitted in request
+    const recVal = is_recommended !== undefined ? (is_recommended ? 1 : 0) : current.is_recommended;
+    const bestVal = is_bestseller !== undefined ? (is_bestseller ? 1 : 0) : current.is_bestseller;
+    const newArrivalVal = is_new_arrival !== undefined ? (is_new_arrival ? 1 : 0) : current.is_new_arrival;
+    const outOfStockVal = is_out_of_stock !== undefined ? (is_out_of_stock ? 1 : 0) : current.is_out_of_stock;
+    const activeVal = is_active !== undefined ? (is_active ? 1 : 0) : current.is_active;
 
-    await logAdminAction(req.admin.id, 'PRODUCT_UPDATED', 'PRODUCT', id, { name });
+    // Filter valid image URLs if provided (up to 10 max)
+    let validImages = null;
+    if (Array.isArray(images) && images.length > 0) {
+      validImages = images
+        .map((url) => (typeof url === 'string' ? url.trim() : ''))
+        .filter((url) => url.length > 0 && /^https?:\/\//i.test(url))
+        .slice(0, 10);
+    }
+
+    await db.withTransaction(async (conn) => {
+      await conn.execute(
+        `UPDATE products
+         SET name = ?,
+             category_id = ?,
+             description = ?,
+             regular_price = ?,
+             discounted_price = ?,
+             is_recommended = ?,
+             is_bestseller = ?,
+             is_new_arrival = ?,
+             is_out_of_stock = ?,
+             is_active = ?,
+             tags = ?
+         WHERE id = ?`,
+        [
+          updatedName,
+          targetCategoryId,
+          description !== undefined ? description : current.description,
+          regPrice,
+          discPrice,
+          recVal,
+          bestVal,
+          newArrivalVal,
+          outOfStockVal,
+          activeVal,
+          tags !== undefined ? tags : current.tags,
+          id
+        ]
+      );
+
+      // If valid images are supplied, replace product images
+      if (validImages && validImages.length > 0) {
+        await conn.execute('DELETE FROM product_images WHERE product_id = ?', [id]);
+        for (let i = 0; i < validImages.length; i++) {
+          await conn.execute(
+            'INSERT INTO product_images (product_id, image_url, image_order) VALUES (?, ?, ?)',
+            [id, validImages[i], i + 1]
+          );
+        }
+      }
+    });
+
+    await logAdminAction(req.admin.id, 'PRODUCT_UPDATED', 'PRODUCT', id, { name: updatedName });
 
     return res.status(200).json({
       success: true,
-      message: 'Product updated successfully',
-      imageNote: 'To change product images, delete and recreate the product.'
+      message: 'Product updated successfully'
     });
   } catch (error) {
     next(error);
@@ -580,6 +609,11 @@ exports.toggleProductFlag = async (req, res, next) => {
     const allowedFields = ['is_out_of_stock', 'is_recommended', 'is_bestseller', 'is_new_arrival', 'is_active'];
     if (!allowedFields.includes(field)) {
       return res.status(400).json({ success: false, message: 'Invalid toggle field' });
+    }
+
+    const existing = await db.query('SELECT id FROM products WHERE id = ? AND deleted_at IS NULL', [id]);
+    if (existing.length === 0) {
+      return res.status(404).json({ success: false, message: 'Product not found' });
     }
 
     const boolVal = value ? 1 : 0;
