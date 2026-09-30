@@ -5,7 +5,6 @@ const config = require('./config/env');
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 
 //setting express trust proxy
-app.set("trust proxy", 1);
 
 // Route imports
 const authRoutes = require('./routes/authRoutes');
@@ -20,6 +19,7 @@ const paymentRoutes = require('./routes/paymentRoutes');
 const noteRoutes = require('./routes/noteRoutes');
 
 const app = express();
+app.set("trust proxy", 1);
 
 const path = require('path');
 const fs = require('fs');
