@@ -242,21 +242,34 @@ Open [http://localhost:5174](http://localhost:5174) in your browser.
 
 ---
 
-## 6. Production Build
+## 6. Production Build & SPA Fallback Routing
 
-To build the client and admin applications for production:
+To build both client and admin applications for production:
 
 ```bash
-# Build storefront
-cd client
+# Build both storefront and admin dashboard from root
 npm run build
+# Or explicitly:
+npm run build:all
+```
 
-# Build admin dashboard
-cd admin
-npm run build
+Alternatively, you can build them individually:
+```bash
+# Storefront only
+npm run build:client
+
+# Admin dashboard only
+npm run build:admin
 ```
 
 The production assets are generated in `client/dist` and `admin/dist`.
+
+### SPA Fallback Routing on Refresh
+The Node/Express server provides seamless SPA fallback routing:
+- **Customer Storefront**: Direct navigation or browser refresh on any valid storefront route (`/shop`, `/product/:id`, `/checkout`, `/orders`, `/about`, `/contact`, `/profile`) serves `client/dist/index.html` allowing React Router to render the appropriate view.
+- **Admin Portal**: Refreshing on any admin route via `/admin` (e.g., `/admin/orders`, `/admin/products`, `/admin/login`) or via admin subdomain (e.g., `admin.goldenzone.in/orders`) serves `admin/dist/index.html` with dynamic basename resolution.
+- **API Preservation**: All `/api/*` endpoints are strictly reserved for the REST backend and return 404 JSON if not matched—never redirected to the frontend.
+- **Asset Integrity**: Missing static files with file extensions (`.js`, `.css`, `.png`, etc.) return 404 instead of HTML to avoid MIME/syntax errors.
 
 ---
 

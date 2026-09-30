@@ -53,8 +53,9 @@ api.interceptors.response.use(
       if (!isLoginEndpoint) {
         localStorage.removeItem('goldenzone_admin_token');
         localStorage.removeItem('goldenzone_admin_user');
-        if (window.location.pathname !== '/login') {
-          window.location.assign('/login');
+        const loginPath = window.location.pathname.startsWith('/admin') ? '/admin/login' : '/login';
+        if (window.location.pathname !== loginPath) {
+          window.location.assign(loginPath);
         }
       }
     }
