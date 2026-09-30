@@ -216,14 +216,19 @@ async function runSpaRoutingTests() {
     );
 
     // Admin asset at root fallback
+    const fs = require('fs');
+    const path = require('path');
+    const adminAssets = fs.readdirSync(path.resolve(__dirname, '../../admin/dist/assets'));
+    const adminJs = adminAssets.find(f => f.startsWith('index-') && f.endsWith('.js')) || 'index-ChQlZE6G.js';
+
     const adminAssetRes = await makeRequest({
       hostname: '127.0.0.1',
       port,
-      path: '/assets/index-qxgdDeMZ.js',
+      path: `/assets/${adminJs}`,
       method: 'GET'
     });
     test(
-      'GET /assets/index-qxgdDeMZ.js -> 200 JavaScript (admin bundle via root fallback)',
+      `GET /assets/${adminJs} -> 200 JavaScript (admin bundle via root fallback)`,
       adminAssetRes.status === 200 && adminAssetRes.headers['content-type']?.includes('javascript')
     );
 
@@ -231,11 +236,11 @@ async function runSpaRoutingTests() {
     const adminPrefixedAssetRes = await makeRequest({
       hostname: '127.0.0.1',
       port,
-      path: '/admin/assets/index-qxgdDeMZ.js',
+      path: `/admin/assets/${adminJs}`,
       method: 'GET'
     });
     test(
-      'GET /admin/assets/index-qxgdDeMZ.js -> 200 JavaScript (admin bundle via /admin prefix)',
+      `GET /admin/assets/${adminJs} -> 200 JavaScript (admin bundle via /admin prefix)`,
       adminPrefixedAssetRes.status === 200 && adminPrefixedAssetRes.headers['content-type']?.includes('javascript')
     );
 
