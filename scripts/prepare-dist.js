@@ -38,7 +38,10 @@ function prepareDist() {
     console.warn('⚠️ [Prepare Dist]: admin/dist does not exist. Skipping admin copy.');
   } else {
     copyDirSync(adminDist, rootAdminDist);
-    console.log('✓ Admin dashboard copied to dist/admin/');
+    if (fs.existsSync(path.join(adminDist, 'assets'))) {
+      copyDirSync(path.join(adminDist, 'assets'), path.join(rootDist, 'assets'));
+    }
+    console.log('✓ Admin dashboard copied to dist/admin/ and assets merged to dist/assets/');
   }
 
   console.log('✅ [Prepare Dist]: Consolidated production assets ready in dist/');
