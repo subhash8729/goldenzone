@@ -11,7 +11,7 @@
     "admin": "npm run dev --prefix admin",
     "build:client": "npm run build --prefix client",
     "build:admin": "npm run build --prefix admin",
-    "build:all": "npm run build:client && npm run build:admin",
+    "build:all": "npm run build:client && npm run build:admin && node scripts/prepare-dist.js",
     "db:init": "npm run db:init --prefix server"
   }
 }
